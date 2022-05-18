@@ -21,7 +21,7 @@ use crate::{
 
 lazy_static! {
     static ref VIDEO_ID: Regex =
-        Regex::new(r"-([^-\.]+)\.(mp4|mkv|webm|mov|avi|mp3|ogg|flac|alac|aac|3gp|wav|aiff|dsf)$")
+        Regex::new(r"-(.*)\.(mp4|mkv|webm|mov|avi|mp3|ogg|flac|alac|aac|3gp|wav|aiff|dsf)$")
             .unwrap();
 }
 
@@ -113,7 +113,8 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
     let mut playlists = vec![];
 
     for item in WalkDir::new(sync_dir) {
-        let item = item.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+        let item = item
+            .map_err(|e| format!("Failed to read directory entry while scanning playlists: {e}"))?;
 
         if let Some(name) = item.file_name().to_str() {
             if name == config.url_filename {
@@ -231,9 +232,13 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
         let path = fs::canonicalize(path.parent().unwrap_or_else(|| Path::new("")))
             .map_err(|e| format!("Failed to canonicalize synchronization directory: {e}"))?;
 
-        let relative_path = path.strip_prefix(&sync_dir).map_err(|e| {
-            format!("Failed to determine video's sync. dir relatively to root sync. dir: {e}")
-        })?;
+        let relative_path = if path == sync_dir {
+            Path::new(".")
+        } else {
+            path.strip_prefix(&sync_dir).map_err(|e| {
+                format!("Failed to determine video's sync. dir relatively to root sync. dir: {e}")
+            })?
+        };
 
         for video in playlist.entries {
             let platform = config.platforms.get(&video.ie_key).ok_or_else(|| {
@@ -345,7 +350,8 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
     let mut ids = HashSet::new();
 
     for item in WalkDir::new(dir) {
-        let item = item.map_err(|e| format!("Failed to read directory entry: {e}"))?;
+        let item =
+            item.map_err(|e| format!("Failed to read directory entry while building index: {e}"))?;
         let path = item.path();
 
         if !path.is_file() {
@@ -366,13 +372,24 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
         if let Some(m) = VIDEO_ID.captures(filename) {
             let id = m.get(1).unwrap().as_str();
 
-            ids.insert(id.to_string());
+            if !id.contains('-') {
+                if !ids.insert(id.to_string()) {
+                    warn!("Two files were found with the same video identifier: {id}");
+                }
 
-            // if !ids.insert(id.to_string()) {
-            //     warn!("Two files were found with the same video identifier: {id}");
-            // }
+                continue;
+            }
+
+            let mut res = vec![];
+
+            for segment in id.split('-').rev() {
+                res.push(segment);
+                ids.insert(res.join("-"));
+            }
         }
     }
+
+    println!("{:#?}", ids);
 
     Ok(ids)
 }

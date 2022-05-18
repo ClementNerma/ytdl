@@ -40,11 +40,17 @@ fn main() {
             let counter_str =
                 format!("{:>str_len$} / {}", entry.index + 1, cache.max_index).bright_black();
 
+            let sync_dir = entry.sync_dir.to_string_lossy();
+
             info!(
-                "{} {} {} {}",
+                "{} {} {}{}",
                 counter_str,
                 format!("[{}]", entry.id).bright_magenta(),
-                entry.sync_dir.to_string_lossy().bright_cyan(),
+                if sync_dir == "." {
+                    String::new()
+                } else {
+                    format!(" {}", sync_dir.bright_cyan())
+                },
                 entry.title.bright_yellow()
             );
         }
