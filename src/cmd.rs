@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 #[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
 pub struct Args {
     #[clap(long, help = "Directory to synchronize")]
     pub sync_dir: PathBuf,
