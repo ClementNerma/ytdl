@@ -49,7 +49,7 @@ fn main() {
                 if sync_dir == "." {
                     String::new()
                 } else {
-                    format!(" {}", sync_dir.bright_cyan())
+                    format!("{} ", sync_dir.bright_cyan())
                 },
                 entry.title.bright_yellow()
             );
