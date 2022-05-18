@@ -36,7 +36,7 @@ pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache, 
 
     let old_cache_entries = old_cache.entries.len();
 
-    let updated_cache = remove_downloaded_entries(old_cache, sync_dir)?;
+    let updated_cache = remove_downloaded_entries(old_cache)?;
 
     if updated_cache.entries.len() == old_cache_entries {
         info!("Successfully checked cache, nothing to update.");
@@ -72,6 +72,11 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
         })
         .collect::<Result<HashMap<_, _>, _>>()?;
 
+    let sync_dirs = videos
+        .iter()
+        .map(|entry| entry.sync_dir.clone())
+        .collect::<HashSet<_>>();
+
     let videos = videos.into_iter().filter(|video| {
         let blacklist = blacklists
             .get(&video.sync_dir)
@@ -80,10 +85,10 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
         !blacklist.is_blacklisted(&video.raw.ie_key, &video.id)
     });
 
-    let index = build_approximate_index(sync_dir)?;
+    let indexes = build_approximate_indexes(sync_dirs)?;
 
     let videos = videos
-        .filter(|video| !index.contains(&video.id))
+        .filter(|video| !indexes.get(&video.sync_dir).expect("Internal consistency error: failed to get index for given video's sync. directory").contains(&video.id))
         .collect::<Vec<_>>();
 
     info!(
@@ -319,9 +324,22 @@ fn build_platform_matchers(
         .collect::<Result<HashMap<_, _>, _>>()
 }
 
-fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
+fn build_approximate_indexes(
+    dirs: HashSet<PathBuf>,
+) -> Result<HashMap<PathBuf, HashSet<String>>, String> {
     info!("Building directory index...");
 
+    let dirs_ids = dirs
+        .into_par_iter()
+        .map(|dir| build_approximate_index(&dir).map(|ids| (dir, ids)))
+        .collect::<Result<HashMap<_, _>, _>>()?;
+
+    info!("{}", "Index is ready.".bright_black());
+
+    Ok(dirs_ids)
+}
+
+fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
     let mut ids = HashSet::new();
 
     for item in WalkDir::new(dir) {
@@ -357,8 +375,6 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
             // }
         }
     }
-
-    info!("{}", "Index is ready.".bright_black());
 
     Ok(ids)
 }
@@ -430,13 +446,19 @@ fn check_videos_availability(
     Ok(available)
 }
 
-fn remove_downloaded_entries(from: Cache, sync_dir: &Path) -> Result<Cache, String> {
-    let index = build_approximate_index(sync_dir)?;
+fn remove_downloaded_entries(from: Cache) -> Result<Cache, String> {
+    let sync_dirs = from
+        .entries
+        .iter()
+        .map(|entry| entry.sync_dir.clone())
+        .collect::<HashSet<_>>();
+
+    let indexes = build_approximate_indexes(sync_dirs)?;
 
     Ok(Cache::new(
         from.entries
             .into_iter()
-            .filter(|video| !index.contains(&video.id))
+            .filter(|video| !indexes.get(&video.sync_dir).expect("Internal consistency error: failed to get index for given video's sync. directory").contains(&video.id))
             .collect::<Vec<_>>(),
     ))
 }
