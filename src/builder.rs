@@ -56,12 +56,19 @@ pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache, 
 }
 
 fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
-    let videos = fetch_playlists(sync_dir, config)?;
+    info!("Looking for playlists...");
 
-    info!("Found a total of {} videos.", videos.len());
+    let playlists = find_playlists(sync_dir, config)?;
 
-    let sync_dirs: HashSet<_> = videos.iter().map(|video| video.sync_dir.clone()).collect();
+    info!(
+        "Found {} playlist(s) to treat.",
+        playlists.len().to_string().bright_yellow()
+    );
 
+    let sync_dirs: HashSet<_> = playlists.iter().map(|p| p.sync_dir.clone()).collect();
+
+    // Decode blacklists beforehand to ensure there won't be an error that will make the whole program fail
+    // after all playlists have been fetched.
     let blacklists = sync_dirs
         .iter()
         .map(|dir| -> Result<(&PathBuf, Blacklist), String> {
@@ -74,10 +81,9 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
         })
         .collect::<Result<HashMap<_, _>, _>>()?;
 
-    let sync_dirs = videos
-        .iter()
-        .map(|entry| entry.sync_dir.clone())
-        .collect::<HashSet<_>>();
+    let videos = fetch_playlists(playlists, config)?;
+
+    info!("Found a total of {} videos.", videos.len());
 
     let videos = videos.into_iter().filter(|video| {
         let blacklist = blacklists
@@ -87,11 +93,11 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
         !blacklist.is_blacklisted(&video.raw.ie_key, &video.id)
     });
 
-    let indexes = build_approximate_indexes(sync_dirs)?;
+    let indexes = build_approximate_indexes(&sync_dirs)?;
 
-    let videos = videos
+    let videos: Vec<_> = videos
         .filter(|video| !indexes.get(&video.sync_dir).expect("Internal consistency error: failed to get index for given video's sync. directory").contains(&video.id))
-        .collect::<Vec<_>>();
+        .collect();
 
     info!(
         "Found {} videos to treat.",
@@ -109,10 +115,13 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
     Ok(Cache::new(entries))
 }
 
-fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo>, String> {
+fn find_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlaylistUrl>, String> {
     let mut playlists = vec![];
 
-    for item in WalkDir::new(sync_dir) {
+    let sync_dir = fs::canonicalize(sync_dir)
+        .map_err(|e| format!("Failed to canonicalize synchronization directory: {e}"))?;
+
+    for item in WalkDir::new(&sync_dir) {
         let item = item
             .map_err(|e| format!("Failed to read directory entry while scanning playlists: {e}"))?;
 
@@ -125,7 +134,23 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
                     )
                 })?;
 
-                playlists.push((item.path().to_path_buf(), url.trim().to_string()));
+                let path = fs::canonicalize(item.path().parent().unwrap_or_else(|| Path::new("")))
+                    .map_err(|e| {
+                        format!("Failed to canonicalize synchronization directory: {e}")
+                    })?;
+
+                let relative_path = if path == sync_dir {
+                    Path::new(".")
+                } else {
+                    path.strip_prefix(&sync_dir).map_err(|e| {
+                        format!("Failed to determine video's sync. dir relatively to root sync. dir: {e}")
+                    })?
+                };
+
+                playlists.push(PlaylistUrl {
+                    sync_dir: relative_path.to_path_buf(),
+                    url: url.trim().to_string(),
+                });
             }
         }
     }
@@ -134,16 +159,18 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
         return Err("ERROR: No playlist found!".into());
     }
 
-    info!(
-        "Found {} playlist(s) to treat.",
-        playlists.len().to_string().bright_yellow()
-    );
+    Ok(playlists)
+}
 
+fn fetch_playlists(
+    playlists: Vec<PlaylistUrl>,
+    config: &Config,
+) -> Result<Vec<PlatformVideo>, String> {
     let platform_matchers = build_platform_matchers(config)?;
 
     let mut parallel_fetching = true;
 
-    for (_, url) in &playlists {
+    for playlist in &playlists {
         let platform = config
             .platforms
             .iter()
@@ -152,13 +179,13 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
                     .get(ie_key)
                     .expect("Internal consistency error: failed to get platform's matchers")
                     .platform_url_matcher
-                    .is_match(url)
+                    .is_match(&playlist.url)
             })
             .map(|(_, config)| config)
             .ok_or_else(|| {
                 format!(
                     "Playlist has unregistered platform given its URL: {}",
-                    url.bright_magenta()
+                    playlist.url.bright_magenta()
                 )
             })?;
 
@@ -183,8 +210,8 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
     pb.enable_steady_tick(100);
 
     let remaining = AtomicUsize::new(playlists.len());
-    let playlist_fetcher = |(path, url): (PathBuf, String)| {
-        let playlist = fetch_playlist(&url).map(|playlist| (path, playlist));
+    let playlist_fetcher = |p: PlaylistUrl| {
+        let playlist = fetch_playlist(&p.url).map(|playlist| (p.sync_dir, playlist));
 
         let rem = remaining.fetch_sub(1, Ordering::SeqCst) - 1;
 
@@ -218,9 +245,6 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
             .cmp(&b.0.to_string_lossy().to_lowercase())
     });
 
-    let sync_dir = fs::canonicalize(sync_dir)
-        .map_err(|e| format!("Failed to canonicalize synchronization directory: {e}"))?;
-
     let total_videos = playlists_content
         .iter()
         .map(|(_, playlist)| playlist.entries.len())
@@ -229,17 +253,6 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
     let mut entries = Vec::with_capacity(total_videos);
 
     for (path, playlist) in playlists_content {
-        let path = fs::canonicalize(path.parent().unwrap_or_else(|| Path::new("")))
-            .map_err(|e| format!("Failed to canonicalize synchronization directory: {e}"))?;
-
-        let relative_path = if path == sync_dir {
-            Path::new(".")
-        } else {
-            path.strip_prefix(&sync_dir).map_err(|e| {
-                format!("Failed to determine video's sync. dir relatively to root sync. dir: {e}")
-            })?
-        };
-
         for video in playlist.entries {
             let platform = config.platforms.get(&video.ie_key).ok_or_else(|| {
                 format!(
@@ -278,7 +291,7 @@ fn fetch_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlatformVideo
             entries.push(PlatformVideo {
                 id: id.as_str().to_string(),
                 raw: video,
-                sync_dir: relative_path.to_path_buf(),
+                sync_dir: path.clone(),
                 needs_checking: platform.needs_checking,
             });
         }
@@ -332,13 +345,13 @@ fn build_platform_matchers(
 }
 
 fn build_approximate_indexes(
-    dirs: HashSet<PathBuf>,
-) -> Result<HashMap<PathBuf, HashSet<String>>, String> {
+    dirs: &HashSet<PathBuf>,
+) -> Result<HashMap<&PathBuf, HashSet<String>>, String> {
     info!("Building directory index...");
 
     let dirs_ids = dirs
         .into_par_iter()
-        .map(|dir| build_approximate_index(&dir).map(|ids| (dir, ids)))
+        .map(|dir| build_approximate_index(dir).map(|ids| (dir, ids)))
         .collect::<Result<HashMap<_, _>, _>>()?;
 
     info!("{}", "Index is ready.".bright_black());
@@ -466,7 +479,7 @@ fn remove_downloaded_entries(from: Cache) -> Result<Cache, String> {
         .map(|entry| entry.sync_dir.clone())
         .collect::<HashSet<_>>();
 
-    let indexes = build_approximate_indexes(sync_dirs)?;
+    let indexes = build_approximate_indexes(&sync_dirs)?;
 
     Ok(Cache::new(
         from.entries
@@ -479,4 +492,9 @@ fn remove_downloaded_entries(from: Cache) -> Result<Cache, String> {
 struct PlatformMatchingRegexes {
     platform_url_matcher: Regex,
     id_from_video_url: Regex,
+}
+
+struct PlaylistUrl {
+    sync_dir: PathBuf,
+    url: String,
 }
