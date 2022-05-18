@@ -384,7 +384,7 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
 
             for segment in id.split('-').rev() {
                 res.push(segment);
-                ids.insert(res.join("-"));
+                ids.insert(res.iter().rev().cloned().collect::<Vec<_>>().join("-"));
             }
         }
     }
