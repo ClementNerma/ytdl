@@ -71,7 +71,13 @@ pub fn load_blacklist_file(path: &Path) -> Result<Blacklist, String> {
         )
     })?;
 
-    Blacklist::decode(&str)
+    Blacklist::decode(&str).map_err(|e| {
+        format!(
+            "Failed to decode blacklist {}: {}",
+            path.to_string_lossy().bright_magenta(),
+            e.bright_yellow()
+        )
+    })
 }
 
 pub fn load_optional_blacklists(paths: &[&Path]) -> Result<Blacklist, String> {
