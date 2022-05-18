@@ -386,10 +386,11 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
             let id = m.get(1).unwrap().as_str();
 
             if !id.contains('-') {
-                if !ids.insert(id.to_string()) {
-                    warn!("Two files were found with the same video identifier: {id}");
-                }
+                // if !ids.insert(id.to_string()) {
+                //     warn!("Two files were found with the same video identifier: {id}");
+                // }
 
+                ids.insert(id.to_string());
                 continue;
             }
 
