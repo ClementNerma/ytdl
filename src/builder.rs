@@ -20,7 +20,9 @@ use crate::{
 };
 
 lazy_static! {
-    static ref VIDEO_ID: Regex = Regex::new(r"-([a-zA-Z0-9_=\-\+\$]+)\.").unwrap();
+    static ref VIDEO_ID: Regex =
+        Regex::new(r"-([^-\.]+)\.(mp4|mkv|webm|mov|avi|mp3|ogg|flac|alac|aac|3gp|wav|aiff|dsf)$")
+            .unwrap();
 }
 
 pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
@@ -360,10 +362,6 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
                 continue;
             }
         };
-
-        if filename.ends_with(".srt") || filename.ends_with(".vtt") {
-            continue;
-        }
 
         if let Some(m) = VIDEO_ID.captures(filename) {
             let id = m.get(1).unwrap().as_str();
