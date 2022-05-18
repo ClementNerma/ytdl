@@ -389,8 +389,6 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
         }
     }
 
-    println!("{:#?}", ids);
-
     Ok(ids)
 }
 
