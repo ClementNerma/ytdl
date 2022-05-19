@@ -81,6 +81,10 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
         })
         .collect::<Result<HashMap<_, _>, _>>()?;
 
+    // Build directory indexes beforehand to ensure there won't be an error that will make the whole program fail
+    // after all playlists have been fetched.
+    let indexes = build_approximate_indexes(&sync_dirs)?;
+
     let videos = fetch_playlists(playlists, config)?;
 
     info!("Found a total of {} videos.", videos.len());
@@ -92,8 +96,6 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
 
         !blacklist.is_blacklisted(&video.raw.ie_key, &video.id)
     });
-
-    let indexes = build_approximate_indexes(&sync_dirs)?;
 
     let videos: Vec<_> = videos
         .filter(|video| !indexes.get(&video.sync_dir).expect("Internal consistency error: failed to get index for given video's sync. directory").contains(&video.id))
