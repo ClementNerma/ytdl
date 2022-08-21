@@ -19,7 +19,7 @@ macro_rules! _format {
         use colored::Colorize;
         let msg = format!($message, $($params)*);
 
-        let msg = match *crate::logging::TERM_WIDTH {
+        let msg = match *$crate::logging::TERM_WIDTH {
             None => msg,
             Some(width) => {
                 // TODO: Remove this
@@ -36,7 +36,7 @@ macro_rules! _format {
 #[macro_export]
 macro_rules! fail {
     ($message: tt, $($params: tt)*) => {{
-        eprintln!("{}", crate::_format!(bright_red => $message, $($params)*));
+        eprintln!("{}", $crate::_format!(bright_red => $message, $($params)*));
         std::process::exit(1);
     }};
 
@@ -48,7 +48,7 @@ macro_rules! fail {
 #[macro_export]
 macro_rules! error {
     ($message: tt, $($params: tt)*) => {{
-        eprintln!("{}", crate::_format!(bright_red => $message, $($params)*));
+        eprintln!("{}", $crate::_format!(bright_red => $message, $($params)*));
     }};
 
     ($message: tt) => {{
@@ -59,7 +59,7 @@ macro_rules! error {
 #[macro_export]
 macro_rules! warn {
     ($message: tt, $($params: tt)*) => {{
-        eprintln!("{}", crate::_format!(bright_yellow => $message, $($params)*));
+        eprintln!("{}", $crate::_format!(bright_yellow => $message, $($params)*));
     }};
 
     ($message: tt) => {{
@@ -70,7 +70,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! info {
     ($message: tt, $($params: tt)*) => {{
-        println!("{}", crate::_format!(bright_blue => $message, $($params)*));
+        println!("{}", $crate::_format!(bright_blue => $message, $($params)*));
     }};
 
     ($message: tt) => {{
@@ -81,7 +81,7 @@ macro_rules! info {
 #[macro_export]
 macro_rules! info_inline {
     ($message: tt, $($params: tt)*) => {{
-        print!("{}", crate::_format!(bright_blue => $message, $($params)*));
+        print!("{}", $crate::_format!(bright_blue => $message, $($params)*));
     }};
 
     ($message: tt) => {{
@@ -92,7 +92,7 @@ macro_rules! info_inline {
 #[macro_export]
 macro_rules! success {
     ($message: tt, $($params: tt)*) => {{
-        println!("{}", crate::_format!(bright_green => $message, $($params)*));
+        println!("{}", $crate::_format!(bright_green => $message, $($params)*));
     }};
 
     ($message: tt) => {{
