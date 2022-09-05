@@ -8,6 +8,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
 };
 use walkdir::WalkDir;
 
@@ -205,11 +206,12 @@ fn fetch_playlists(
     let pb = ProgressBar::new(playlists.len() as u64).with_style(
         ProgressStyle::default_bar()
             .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>3}/{len:3} {eta_precise} {msg}")
+            .expect("Invalid template provided for ProgressBar")
             .progress_chars("##-"),
     );
 
     pb.set_message("Starting to fetch...");
-    pb.enable_steady_tick(100);
+    pb.enable_steady_tick(Duration::from_secs(100));
 
     let remaining = AtomicUsize::new(playlists.len());
     let playlist_fetcher = |p: PlaylistUrl| {
