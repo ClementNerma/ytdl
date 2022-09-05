@@ -24,6 +24,7 @@ impl Blacklist {
                 .trim()
                 .lines()
                 .enumerate()
+                .filter(|(_, line)| !line.is_empty() && !line.starts_with('#'))
                 .map(|(i, line)| {
                     BlacklistEntry::decode(line)
                         .map_err(|e| format!("Failed to decode line n°{}: {e}", i + 1))
