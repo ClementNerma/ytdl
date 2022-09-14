@@ -1,58 +1,54 @@
 #![forbid(unsafe_code)]
 #![forbid(unused_must_use)]
 
-use colored::Colorize;
-
-mod blacklist;
-mod builder;
-mod cache;
 mod cmd;
 mod config;
 mod logging;
+mod sync;
 mod ytdlp;
 
+use self::{
+    cmd::{Action, Cmd},
+    config::Config,
+    sync::{build_or_update_cache, display_sync},
+    ytdlp::check_version,
+};
+use clap::Parser;
+use dirs::config_dir;
+use std::{env, fs};
+
 fn main() {
-    use crate::{cmd::Args, config::Config, ytdlp::check_version};
-    use clap::Parser;
+    let args = Cmd::parse();
+    let default_config_path = config_dir().unwrap().join("yt-dlp").join("config.json");
+    let config_path = args.config_file.unwrap_or(default_config_path);
 
-    let args = Args::parse();
+    if !config_path.is_file() {
+        fail!("Config file was not found at: {}", config_path.display());
+    }
 
-    let config = Config::decode(&args.config).unwrap_or_else(|e| fail!("{e}"));
+    let config = fs::read_to_string(&config_path)
+        .unwrap_or_else(|e| format!("Failed to read config file: {e}"));
 
-    if let Err(e) = check_version() {
+    let config = Config::decode(&config).unwrap_or_else(|e| fail!("{e}"));
+
+    if let Err(e) = check_version(&config.yt_dlp_bin) {
         fail!("Failed to check YT-DLP: {e}");
     }
 
-    let cache =
-        builder::build_or_update_cache(&args.sync_dir, &config).unwrap_or_else(|e| fail!("{e}"));
+    let cwd = env::current_dir().unwrap();
 
-    if args.display_colored_list {
-        let max_index = cache
-            .entries
-            .iter()
-            .map(|entry| entry.index)
-            .max()
-            .unwrap_or(0);
+    match args.action {
+        Action::Sync(args) => {
+            let cache = build_or_update_cache(&cwd, &config).unwrap_or_else(|e| fail!("{e}"));
 
-        let str_len = max_index.to_string().len();
+            display_sync(&cache);
 
-        for entry in cache.entries {
-            let counter_str =
-                format!("{:>str_len$} / {}", entry.index + 1, cache.max_index).bright_black();
+            if args.dry_run {
+                info!("Dry run completed!");
+                return;
+            }
 
-            let sync_dir = entry.sync_dir.to_string_lossy();
-
-            info!(
-                "{} {} {}{}",
-                counter_str,
-                format!("[{}]", entry.id).bright_magenta(),
-                if sync_dir == "." {
-                    String::new()
-                } else {
-                    format!("{} ", sync_dir.bright_cyan())
-                },
-                entry.title.bright_yellow()
-            );
+            todo!()
         }
     }
 }

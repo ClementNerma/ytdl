@@ -1,16 +1,26 @@
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
-use clap::Parser;
-
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
-pub struct Args {
-    #[clap(long, help = "Directory to synchronize")]
-    pub sync_dir: PathBuf,
+pub struct Cmd {
+    #[clap(
+        short = 'c',
+        long = "config-file",
+        help = "Path to the configuration file"
+    )]
+    pub config_file: Option<PathBuf>,
 
-    #[clap(long, help = "Configuration as a JSON string")]
-    pub config: String,
+    #[clap(subcommand)]
+    pub action: Action,
+}
 
-    #[clap(long, help = "Display the cache's content as a colored list")]
-    pub display_colored_list: bool,
+#[derive(Subcommand)]
+pub enum Action {
+    Sync(SyncArgs),
+}
+
+#[derive(Args)]
+pub struct SyncArgs {
+    #[clap(long = "dry-run", help = "Simulate the synchronization")]
+    pub dry_run: bool,
 }

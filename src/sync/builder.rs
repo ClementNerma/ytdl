@@ -12,9 +12,11 @@ use std::{
 };
 use walkdir::WalkDir;
 
-use crate::{
+use super::{
     blacklist::{blacklist_video, load_optional_blacklists, Blacklist},
     cache::{Cache, CacheEntry, PlatformVideo},
+};
+use crate::{
     config::{Config, ID_REGEX_MATCHING_GROUP_NAME},
     error, fail, info, info_inline, success, warn,
     ytdlp::{check_availability, fetch_playlist},
@@ -215,7 +217,8 @@ fn fetch_playlists(
 
     let remaining = AtomicUsize::new(playlists.len());
     let playlist_fetcher = |p: PlaylistUrl| {
-        let playlist = fetch_playlist(&p.url).map(|playlist| (p.sync_dir, playlist));
+        let playlist =
+            fetch_playlist(&config.yt_dlp_bin, &p.url).map(|playlist| (p.sync_dir, playlist));
 
         let rem = remaining.fetch_sub(1, Ordering::SeqCst) - 1;
 
@@ -457,7 +460,7 @@ fn check_videos_availability(
             format!("({})", video.id).bright_black()
         );
 
-        if check_availability(&video.raw.url)? {
+        if check_availability(&config.yt_dlp_bin, &video.raw.url)? {
             success!("OK");
 
             available.push(video);

@@ -1,11 +1,9 @@
+use crate::ytdlp::RawVideoInfos;
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
-
-use serde::{Deserialize, Serialize};
-
-use crate::ytdlp::RawVideoInfos;
 
 #[derive(Serialize, Deserialize)]
 pub struct Cache {

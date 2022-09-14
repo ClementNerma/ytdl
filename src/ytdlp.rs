@@ -1,5 +1,6 @@
 use std::{
     io::{stderr, stdout, Write},
+    path::Path,
     process::Command,
 };
 
@@ -20,13 +21,6 @@ pub struct RawVideoInfos {
     pub url: String,
 }
 
-// pub struct IndexedVideoInfos {
-//     pub raw: RawVideoInfos,
-//     pub index: usize,
-// }
-
-static YT_DLP_CMD: &str = "yt-dlp";
-
 fn flush_stdout() {
     stdout()
         .flush()
@@ -37,10 +31,10 @@ fn flush_stdout() {
         .unwrap_or_else(|e| fail!("Failed to flush STDERR: {e}"));
 }
 
-fn call_yt_dlp(args: &[&str]) -> Result<String, String> {
+fn call_yt_dlp(bin: &Path, args: &[&str]) -> Result<String, String> {
     flush_stdout();
 
-    let cmd = Command::new(YT_DLP_CMD)
+    let cmd = Command::new(bin)
         .args(args)
         .output()
         .map_err(|e| format!("Failed to run command: {e}"))?;
@@ -73,12 +67,12 @@ fn call_yt_dlp(args: &[&str]) -> Result<String, String> {
     Ok(output.to_string())
 }
 
-pub fn check_version() -> Result<String, String> {
-    call_yt_dlp(&["--version"])
+pub fn check_version(bin: &Path) -> Result<String, String> {
+    call_yt_dlp(bin, &["--version"])
 }
 
-pub fn fetch_playlist(url: &str) -> Result<RawPlaylist, String> {
-    let output = call_yt_dlp(&["-J", "--flat-playlist", url])?;
+pub fn fetch_playlist(bin: &Path, url: &str) -> Result<RawPlaylist, String> {
+    let output = call_yt_dlp(bin, &["-J", "--flat-playlist", url])?;
 
     serde_json::from_str::<RawPlaylist>(&output).map_err(|e| {
         format!(
@@ -88,8 +82,8 @@ pub fn fetch_playlist(url: &str) -> Result<RawPlaylist, String> {
     })
 }
 
-pub fn check_availability(url: &str) -> Result<bool, String> {
+pub fn check_availability(bin: &Path, url: &str) -> Result<bool, String> {
     // TODO: detect if error is caused by video being unavailable or by another error in YT-DLP
 
-    Ok(call_yt_dlp(&["--get-url", url]).is_ok())
+    Ok(call_yt_dlp(bin, &["--get-url", url]).is_ok())
 }
