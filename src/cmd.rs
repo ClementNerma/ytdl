@@ -1,4 +1,5 @@
-use clap::{Args, Parser, Subcommand};
+use crate::sync::SyncArgs;
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -17,10 +18,4 @@ pub struct Cmd {
 #[derive(Subcommand)]
 pub enum Action {
     Sync(SyncArgs),
-}
-
-#[derive(Args)]
-pub struct SyncArgs {
-    #[clap(long = "dry-run", help = "Simulate the synchronization")]
-    pub dry_run: bool,
 }
