@@ -1,3 +1,4 @@
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
@@ -28,7 +29,7 @@ lazy_static! {
             .unwrap();
 }
 
-pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
+pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache> {
     let cache_path = sync_dir.join(&config.cache_filename);
 
     if !cache_path.exists() {
@@ -58,7 +59,7 @@ pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache, 
     Ok(updated_cache)
 }
 
-fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
+fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache> {
     info!("Looking for playlists...");
 
     let playlists = find_playlists(sync_dir, config)?;
@@ -74,7 +75,7 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
     // after all playlists have been fetched.
     let blacklists = sync_dirs
         .iter()
-        .map(|dir| -> Result<(&PathBuf, Blacklist), String> {
+        .map(|dir| -> Result<(&PathBuf, Blacklist)> {
             let merged_blacklists = load_optional_blacklists(&[
                 &sync_dir.join(dir).join(&config.auto_blacklist_filename),
                 &sync_dir.join(dir).join(&config.custom_blacklist_filename),
@@ -120,36 +121,33 @@ fn build_cache(sync_dir: &Path, config: &Config) -> Result<Cache, String> {
     Ok(Cache::new(entries))
 }
 
-fn find_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlaylistUrl>, String> {
+fn find_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlaylistUrl>> {
     let mut playlists = vec![];
 
-    let sync_dir = fs::canonicalize(sync_dir)
-        .map_err(|e| format!("Failed to canonicalize synchronization directory: {e}"))?;
+    let sync_dir =
+        fs::canonicalize(sync_dir).context("Failed to canonicalize synchronization directory")?;
 
     for item in WalkDir::new(&sync_dir) {
-        let item = item
-            .map_err(|e| format!("Failed to read directory entry while scanning playlists: {e}"))?;
+        let item = item.context("Failed to read directory entry while scanning playlists")?;
 
         if let Some(name) = item.file_name().to_str() {
             if name == config.url_filename {
-                let url = fs::read_to_string(item.path()).map_err(|e| {
+                let url = fs::read_to_string(item.path()).with_context(|| {
                     format!(
-                        "Failed to read playlist file at path {}: {e}",
+                        "Failed to read playlist file at path {}",
                         item.path().to_string_lossy().bright_magenta()
                     )
                 })?;
 
                 let path = fs::canonicalize(item.path().parent().unwrap_or_else(|| Path::new("")))
-                    .map_err(|e| {
-                        format!("Failed to canonicalize synchronization directory: {e}")
-                    })?;
+                    .context("Failed to canonicalize synchronization directory")?;
 
                 let relative_path = if path == sync_dir {
                     Path::new(".")
                 } else {
-                    path.strip_prefix(&sync_dir).map_err(|e| {
-                        format!("Failed to determine video's sync. dir relatively to root sync. dir: {e}")
-                    })?
+                    path.strip_prefix(&sync_dir).context(
+                        "Failed to determine video's sync. dir relatively to root sync. dir",
+                    )?
                 };
 
                 playlists.push(PlaylistUrl {
@@ -161,16 +159,13 @@ fn find_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlaylistUrl>, 
     }
 
     if playlists.is_empty() {
-        return Err("ERROR: No playlist found!".into());
+        bail!("ERROR: No playlist found!");
     }
 
     Ok(playlists)
 }
 
-fn fetch_playlists(
-    playlists: Vec<PlaylistUrl>,
-    config: &Config,
-) -> Result<Vec<PlatformVideo>, String> {
+fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<PlatformVideo>> {
     let platform_matchers = build_platform_matchers(config)?;
 
     let mut parallel_fetching = true;
@@ -187,7 +182,7 @@ fn fetch_playlists(
                     .is_match(&playlist.url)
             })
             .map(|(_, config)| config)
-            .ok_or_else(|| {
+            .with_context(|| {
                 format!(
                     "Playlist has unregistered platform given its URL: {}",
                     playlist.url.bright_magenta()
@@ -261,7 +256,7 @@ fn fetch_playlists(
 
     for (path, playlist) in playlists_content {
         for video in playlist.entries {
-            let platform = config.platforms.get(&video.ie_key).ok_or_else(|| {
+            let platform = config.platforms.get(&video.ie_key).with_context(|| {
                 format!(
                     "Found unregistered platform (IE key) {} for video at URL {}",
                     video.ie_key.bright_yellow(),
@@ -276,7 +271,7 @@ fn fetch_playlists(
             let matching = matcher
                 .id_from_video_url
                 .captures(&video.url)
-                .ok_or_else(|| {
+                .with_context(|| {
                     format!(
                         "Video URL does not match provided pattern for platform {}: {} in {}",
                         video.ie_key.bright_yellow(),
@@ -285,13 +280,15 @@ fn fetch_playlists(
                     )
                 })?;
 
-            let id = matching.name(ID_REGEX_MATCHING_GROUP_NAME).ok_or_else(|| {
-                format!(
-                    "Inconsistency error: missing ID capture group {} in platform regex {}",
-                    ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
-                    matcher.id_from_video_url.to_string().bright_yellow()
-                )
-            })?;
+            let id = matching
+                .name(ID_REGEX_MATCHING_GROUP_NAME)
+                .with_context(|| {
+                    format!(
+                        "Inconsistency error: missing ID capture group {} in platform regex {}",
+                        ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
+                        matcher.id_from_video_url.to_string().bright_yellow()
+                    )
+                })?;
 
             entries.push(PlatformVideo {
                 id: id.as_str().to_string(),
@@ -305,27 +302,23 @@ fn fetch_playlists(
     Ok(entries)
 }
 
-fn build_platform_matchers(
-    config: &Config,
-) -> Result<HashMap<&String, PlatformMatchingRegexes>, String> {
+fn build_platform_matchers(config: &Config) -> Result<HashMap<&String, PlatformMatchingRegexes>> {
     config
         .platforms
         .iter()
         .map(|(ie_key, config)| {
             let regexes = PlatformMatchingRegexes {
-                platform_url_matcher: Regex::new(&config.playlists_url_regex).map_err(|e| {
+                platform_url_matcher: Regex::new(&config.playlists_url_regex).with_context(|| {
                     format!(
-                        "Platform {} has an invalid regex for playlist URL matching: {}",
+                        "Platform {} has an invalid regex for playlist URL matching",
                         ie_key.bright_cyan(),
-                        e.to_string().bright_yellow()
                     )
                 })?,
 
-                id_from_video_url: Regex::new(&config.videos_url_regex).map_err(|e| {
+                id_from_video_url: Regex::new(&config.videos_url_regex).with_context(|| {
                     format!(
-                        "Platform {} has an invalid regex for playlist URL matching: {}",
+                        "Platform {} has an invalid regex for playlist URL matching",
                         ie_key.bright_cyan(),
-                        e.to_string().bright_yellow()
                     )
                 })?,
             };
@@ -336,22 +329,22 @@ fn build_platform_matchers(
             });
 
             if !has_id_group {
-                return Err(format!(
+                bail!(
                     "Platform {}'s regex for playlist URL matching is missing the '{}' capture group: {}",
                     ie_key.bright_cyan(),
                     ID_REGEX_MATCHING_GROUP_NAME.bright_yellow(),
                     config.videos_url_regex.bright_yellow()
-                ));
+                );
             }
 
             Ok((ie_key, regexes))
         })
-        .collect::<Result<HashMap<_, _>, _>>()
+        .collect::<Result<HashMap<_, _>>>()
 }
 
 fn build_approximate_indexes(
     dirs: &HashSet<PathBuf>,
-) -> Result<HashMap<&PathBuf, HashSet<String>>, String> {
+) -> Result<HashMap<&PathBuf, HashSet<String>>> {
     info!("Building directory index...");
 
     let dirs_ids = dirs
@@ -364,12 +357,11 @@ fn build_approximate_indexes(
     Ok(dirs_ids)
 }
 
-fn build_approximate_index(dir: &Path) -> Result<HashSet<String>, String> {
+fn build_approximate_index(dir: &Path) -> Result<HashSet<String>> {
     let mut ids = HashSet::new();
 
     for item in WalkDir::new(dir) {
-        let item =
-            item.map_err(|e| format!("Failed to read directory entry while building index: {e}"))?;
+        let item = item.context("Failed to read directory entry while building index")?;
         let path = item.path();
 
         if !path.is_file() {
@@ -415,7 +407,7 @@ fn check_videos_availability(
     sync_dir: &Path,
     videos: Vec<PlatformVideo>,
     config: &Config,
-) -> Result<Vec<PlatformVideo>, String> {
+) -> Result<Vec<PlatformVideo>> {
     let to_check = videos.iter().filter(|video| video.needs_checking).count();
 
     if to_check == 0 {
@@ -478,7 +470,7 @@ fn check_videos_availability(
     Ok(available)
 }
 
-fn remove_downloaded_entries(from: Cache) -> Result<Cache, String> {
+fn remove_downloaded_entries(from: Cache) -> Result<Cache> {
     let sync_dirs = from
         .entries
         .iter()

@@ -1,4 +1,5 @@
 use crate::ytdlp::RawVideoInfos;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -21,20 +22,17 @@ impl Cache {
         Self { entries, max_index }
     }
 
-    pub fn load_from_disk(path: &Path) -> Result<Self, String> {
-        let cache =
-            fs::read_to_string(path).map_err(|e| format!("Failed to read cache file: {e}"))?;
-
-        serde_json::from_str(&cache).map_err(|e| format!("Failed to decode cache file: {e}"))
+    pub fn load_from_disk(path: &Path) -> Result<Self> {
+        let cache = fs::read_to_string(path).context("Failed to read cache file")?;
+        serde_json::from_str(&cache).context("Failed to decode cache file")
     }
 
-    pub fn save_to_disk(&self, path: &Path) -> Result<(), String> {
+    pub fn save_to_disk(&self, path: &Path) -> Result<()> {
         fs::write(
             path,
-            serde_json::to_string_pretty(self)
-                .map_err(|e| format!("Failed to serialize cache content: {e}"))?,
+            serde_json::to_string_pretty(self).context("Failed to serialize cache content")?,
         )
-        .map_err(|e| format!("Failed to write cache file: {e}"))
+        .context("Failed to write cache file")
     }
 }
 

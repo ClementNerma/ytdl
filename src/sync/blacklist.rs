@@ -4,6 +4,7 @@ use std::{
     path::Path,
 };
 
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -18,7 +19,7 @@ impl Blacklist {
         Self(entries)
     }
 
-    pub fn decode(content: &str) -> Result<Self, String> {
+    pub fn decode(content: &str) -> Result<Self> {
         Ok(Self(
             content
                 .trim()
@@ -27,9 +28,9 @@ impl Blacklist {
                 .filter(|(_, line)| !line.is_empty() && !line.starts_with('#'))
                 .map(|(i, line)| {
                     BlacklistEntry::decode(line)
-                        .map_err(|e| format!("Failed to decode line n°{}: {e}", i + 1))
+                        .with_context(|| format!("Failed to decode line n°{}", i + 1))
                 })
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>>>()?,
         ))
     }
 
@@ -46,14 +47,14 @@ pub struct BlacklistEntry {
 }
 
 impl BlacklistEntry {
-    pub fn decode(line: &str) -> Result<Self, &'static str> {
+    pub fn decode(line: &str) -> Result<Self> {
         let mut segments = line.split('/');
 
-        let ie_key = segments.next().ok_or("IE key is missing")?.to_string();
-        let id = segments.next().ok_or("Video ID is missing")?.to_string();
+        let ie_key = segments.next().context("IE key is missing")?.to_string();
+        let id = segments.next().context("Video ID is missing")?.to_string();
 
         if segments.next().is_some() {
-            Err("Too many segments (/)")
+            bail!("Too many segments (/)")
         } else {
             Ok(Self {
                 ie_key,
@@ -63,25 +64,23 @@ impl BlacklistEntry {
     }
 }
 
-pub fn load_blacklist_file(path: &Path) -> Result<Blacklist, String> {
-    let str = fs::read_to_string(&path).map_err(|e| {
+pub fn load_blacklist_file(path: &Path) -> Result<Blacklist> {
+    let str = fs::read_to_string(&path).with_context(|| {
         format!(
-            "Failed to read blacklist file at path '{}': {}",
-            path.to_string_lossy().bright_magenta(),
-            e
+            "Failed to read blacklist file at path '{}'",
+            path.to_string_lossy().bright_magenta()
         )
     })?;
 
-    Blacklist::decode(&str).map_err(|e| {
+    Blacklist::decode(&str).with_context(|| {
         format!(
-            "Failed to decode blacklist {}: {}",
-            path.to_string_lossy().bright_magenta(),
-            e.bright_yellow()
+            "Failed to decode blacklist {}",
+            path.to_string_lossy().bright_magenta()
         )
     })
 }
 
-pub fn load_optional_blacklists(paths: &[&Path]) -> Result<Blacklist, String> {
+pub fn load_optional_blacklists(paths: &[&Path]) -> Result<Blacklist> {
     let blacklists = paths
         .par_iter()
         .map(|path| {
@@ -101,15 +100,15 @@ pub fn load_optional_blacklists(paths: &[&Path]) -> Result<Blacklist, String> {
     ))
 }
 
-pub fn blacklist_video(path: &Path, ie_key: &str, video_id: &str) -> Result<(), String> {
+pub fn blacklist_video(path: &Path, ie_key: &str, video_id: &str) -> Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
         .write(true)
         .append(true)
         .open(path)
-        .map_err(|e| format!("Failed to create or open blacklist file: {e}"))?;
+        .context("Failed to create or open blacklist file")?;
 
     let line = format!("{}/{}", ie_key, video_id);
 
-    writeln!(file, "{line}").map_err(|e| format!("Failed to update blacklist file: {e}"))
+    writeln!(file, "{line}").context("Failed to update blacklist file")
 }

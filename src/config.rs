@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -12,8 +13,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn decode(input: &str) -> Result<Self, String> {
-        serde_json::from_str(input).map_err(|e| format!("Failed to decode config file: {e}"))
+    pub fn decode(input: &str) -> Result<Self> {
+        serde_json::from_str(input).context("Failed to decode provided configuration")
     }
 }
 

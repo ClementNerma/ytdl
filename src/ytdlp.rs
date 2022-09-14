@@ -4,6 +4,7 @@ use std::{
     process::Command,
 };
 
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
@@ -31,13 +32,13 @@ fn flush_stdout() {
         .unwrap_or_else(|e| fail!("Failed to flush STDERR: {e}"));
 }
 
-fn call_yt_dlp(bin: &Path, args: &[&str]) -> Result<String, String> {
+fn call_yt_dlp(bin: &Path, args: &[&str]) -> Result<String> {
     flush_stdout();
 
     let cmd = Command::new(bin)
         .args(args)
         .output()
-        .map_err(|e| format!("Failed to run command: {e}"))?;
+        .context("Failed to run YT-DLP command")?;
 
     flush_stdout();
 
@@ -47,7 +48,7 @@ fn call_yt_dlp(bin: &Path, args: &[&str]) -> Result<String, String> {
             None => String::from("<unknown code>"),
         };
 
-        return Err(format!(
+        bail!(
             "Failed to run command (status code = {}).\n\nArguments: {}\n\nProgram output:\n\n{}",
             status_code.bright_yellow(),
             args.iter()
@@ -58,31 +59,31 @@ fn call_yt_dlp(bin: &Path, args: &[&str]) -> Result<String, String> {
                 .join(" ")
                 .bright_yellow(),
             String::from_utf8_lossy(&cmd.stderr).bright_yellow()
-        ));
+        );
     }
 
-    let output = std::str::from_utf8(&cmd.stdout)
-        .map_err(|e| format!("Failed to decode command output as UTF-8: {e}"))?;
+    let output =
+        std::str::from_utf8(&cmd.stdout).context("Failed to decode command output as UTF-8")?;
 
     Ok(output.to_string())
 }
 
-pub fn check_version(bin: &Path) -> Result<String, String> {
+pub fn check_version(bin: &Path) -> Result<String> {
     call_yt_dlp(bin, &["--version"])
 }
 
-pub fn fetch_playlist(bin: &Path, url: &str) -> Result<RawPlaylist, String> {
+pub fn fetch_playlist(bin: &Path, url: &str) -> Result<RawPlaylist> {
     let output = call_yt_dlp(bin, &["-J", "--flat-playlist", url])?;
 
-    serde_json::from_str::<RawPlaylist>(&output).map_err(|e| {
+    serde_json::from_str::<RawPlaylist>(&output).with_context(|| {
         format!(
-            "Failed to decode playlist: {e}\n\nYT-DLP returned:\n\n{}",
+            "Failed to decode playlist, YT-DLP returned:\n\n{}",
             output.yellow()
         )
     })
 }
 
-pub fn check_availability(bin: &Path, url: &str) -> Result<bool, String> {
+pub fn check_availability(bin: &Path, url: &str) -> Result<bool> {
     // TODO: detect if error is caused by video being unavailable or by another error in YT-DLP
 
     Ok(call_yt_dlp(bin, &["--get-url", url]).is_ok())
