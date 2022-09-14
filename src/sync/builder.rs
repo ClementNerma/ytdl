@@ -18,7 +18,7 @@ use super::{
 };
 use crate::{
     config::{Config, ID_REGEX_MATCHING_GROUP_NAME},
-    error, fail, info, info_inline, success, warn,
+    error, info, info_inline, success, warn,
     ytdlp::{check_availability, fetch_playlist},
 };
 
@@ -285,15 +285,13 @@ fn fetch_playlists(
                     )
                 })?;
 
-            let id = matching
-                .name(ID_REGEX_MATCHING_GROUP_NAME)
-                .unwrap_or_else(|| {
-                    fail!(
-                        "Inconsistency error: missing ID capture group {} in platform regex {}",
-                        ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
-                        matcher.id_from_video_url.to_string().bright_yellow()
-                    )
-                });
+            let id = matching.name(ID_REGEX_MATCHING_GROUP_NAME).ok_or_else(|| {
+                format!(
+                    "Inconsistency error: missing ID capture group {} in platform regex {}",
+                    ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
+                    matcher.id_from_video_url.to_string().bright_yellow()
+                )
+            })?;
 
             entries.push(PlatformVideo {
                 id: id.as_str().to_string(),
