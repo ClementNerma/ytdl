@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-use crate::shell::run_cmd;
+use super::shell::run_cmd;
 
 #[derive(Deserialize)]
 pub struct RawPlaylist {

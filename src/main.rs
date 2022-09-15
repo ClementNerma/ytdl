@@ -3,18 +3,16 @@
 
 mod cmd;
 mod config;
-mod cookies;
 mod dl;
-mod logging;
-mod platforms;
-mod shell;
 mod sync;
-mod ytdlp;
+mod utils;
+
+pub use utils::*;
 
 use self::{
     cmd::{Action, Cmd},
     config::Config,
-    ytdlp::check_version,
+    utils::ytdlp::check_version,
 };
 use anyhow::{bail, Context, Result};
 use clap::Parser;
