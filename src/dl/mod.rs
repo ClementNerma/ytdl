@@ -7,7 +7,7 @@ pub use constants::*;
 
 use crate::{
     config::Config,
-    cookies::cookie_path,
+    cookies::existing_cookie_path,
     dl::repair_date::repair_date,
     info,
     platforms::{find_platform, PlatformsMatchers},
@@ -117,7 +117,7 @@ pub fn download(
         .cookie_profile
         .as_ref()
         .map(|profile| {
-            let file = cookie_path(profile, config).with_context(|| {
+            let file = existing_cookie_path(profile, config).with_context(|| {
                 format!(
                     "The provided cookie profile '{}' was not found",
                     profile.bright_cyan()

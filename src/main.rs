@@ -3,10 +3,12 @@
 
 mod cmd;
 mod config;
+mod cookies;
 mod dl;
 mod sync;
 mod utils;
 
+use cookies::cookies;
 pub use utils::*;
 
 use self::{
@@ -67,5 +69,6 @@ fn inner_main() -> Result<()> {
     match args.action {
         Action::Dl(args) => download(&args, &config, None, None),
         Action::Sync(args) => sync_dl(&args, &config, &cwd),
+        Action::Cookies(args) => cookies(&args, &config),
     }
 }

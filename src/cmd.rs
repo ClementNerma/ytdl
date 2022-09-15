@@ -1,8 +1,9 @@
-use crate::{dl::DlArgs, sync::SyncArgs};
+use crate::{cookies::CookiesArgs, dl::DlArgs, sync::SyncArgs};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
 pub struct Cmd {
     #[clap(
         short = 'c',
@@ -19,4 +20,5 @@ pub struct Cmd {
 pub enum Action {
     Dl(DlArgs),
     Sync(SyncArgs),
+    Cookies(CookiesArgs),
 }
