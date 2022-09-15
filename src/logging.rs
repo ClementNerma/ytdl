@@ -1,16 +1,7 @@
 use lazy_static::lazy_static;
-use std::env::{var, VarError};
 
 lazy_static! {
-    pub static ref TERM_WIDTH: Option<usize> = match var("TERM_WIDTH") {
-        Ok(width) => Some(
-            width
-                .parse::<usize>()
-                .expect("Please provide a valid terminal width!")
-        ),
-        Err(VarError::NotUnicode(_)) => panic!("Please provide a valid terminal width!"),
-        Err(VarError::NotPresent) => None,
-    };
+    pub static ref TERM_WIDTH: Option<u16> = termsize::get().map(|size| size.cols);
 }
 
 #[macro_export]
