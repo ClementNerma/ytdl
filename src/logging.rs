@@ -12,12 +12,7 @@ macro_rules! _format {
 
         let msg = match *$crate::logging::TERM_WIDTH {
             None => msg,
-            Some(width) => {
-                // TODO: Remove this
-                // HACK: to take into account the calculus error caused by colorization characters
-                let width = (width as f64 * 1.2) as usize;
-                msg.chars().take(width).collect()
-            }
+            Some(width) => msg.chars().take(width.into()).collect()
         };
 
         msg.$color()
