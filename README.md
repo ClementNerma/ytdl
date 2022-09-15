@@ -1,3 +1,3 @@
-# `ytsync-cache-builder`
+# `ytdl`
 
-This program aims to be used exclusively with [AutoDotFiles](https://github.com/ClementNerma/AutoDotFiles).
+This program mainly aims to be used together with [AutoDotFiles](https://github.com/ClementNerma/AutoDotFiles).
