@@ -18,8 +18,10 @@ use super::{
     cache::{Cache, CacheEntry, PlatformVideo},
 };
 use crate::{
-    config::{Config, ID_REGEX_MATCHING_GROUP_NAME},
-    error, info, info_inline, success, warn,
+    config::Config,
+    error, info, info_inline,
+    platforms::{build_platform_matchers, determine_video_id, find_platform},
+    success, warn,
     ytdlp::{check_availability, fetch_playlist},
 };
 
@@ -171,25 +173,9 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
     let mut parallel_fetching = true;
 
     for playlist in &playlists {
-        let platform = config
-            .platforms
-            .iter()
-            .find(|(ie_key, _)| {
-                platform_matchers
-                    .get(ie_key)
-                    .expect("Internal consistency error: failed to get platform's matchers")
-                    .platform_url_matcher
-                    .is_match(&playlist.url)
-            })
-            .map(|(_, config)| config)
-            .with_context(|| {
-                format!(
-                    "Playlist has unregistered platform given its URL: {}",
-                    playlist.url.bright_magenta()
-                )
-            })?;
+        let (platform, _) = find_platform(&playlist.url, config, &platform_matchers)?;
 
-        if platform.rate_limited {
+        if platform.rate_limited == Some(true) {
             parallel_fetching = false;
         }
     }
@@ -264,82 +250,18 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
                 )
             })?;
 
-            let matcher = platform_matchers.get(&video.ie_key).expect(
-                "Internal consistency error: failed to get platform matchers for given video",
-            );
-
-            let matching = matcher
-                .id_from_video_url
-                .captures(&video.url)
-                .with_context(|| {
-                    format!(
-                        "Video URL does not match provided pattern for platform {}: {} in {}",
-                        video.ie_key.bright_yellow(),
-                        matcher.id_from_video_url.to_string().bright_cyan(),
-                        video.url.bright_magenta(),
-                    )
-                })?;
-
-            let id = matching
-                .name(ID_REGEX_MATCHING_GROUP_NAME)
-                .with_context(|| {
-                    format!(
-                        "Inconsistency error: missing ID capture group {} in platform regex {}",
-                        ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
-                        matcher.id_from_video_url.to_string().bright_yellow()
-                    )
-                })?;
+            let id = determine_video_id(&video, &platform_matchers)?;
 
             entries.push(PlatformVideo {
-                id: id.as_str().to_string(),
+                id,
                 raw: video,
                 sync_dir: path.clone(),
-                needs_checking: platform.needs_checking,
+                needs_checking: platform.needs_checking == Some(true),
             });
         }
     }
 
     Ok(entries)
-}
-
-fn build_platform_matchers(config: &Config) -> Result<HashMap<&String, PlatformMatchingRegexes>> {
-    config
-        .platforms
-        .iter()
-        .map(|(ie_key, config)| {
-            let regexes = PlatformMatchingRegexes {
-                platform_url_matcher: Regex::new(&config.playlists_url_regex).with_context(|| {
-                    format!(
-                        "Platform {} has an invalid regex for playlist URL matching",
-                        ie_key.bright_cyan(),
-                    )
-                })?,
-
-                id_from_video_url: Regex::new(&config.videos_url_regex).with_context(|| {
-                    format!(
-                        "Platform {} has an invalid regex for playlist URL matching",
-                        ie_key.bright_cyan(),
-                    )
-                })?,
-            };
-
-            let has_id_group = regexes.id_from_video_url.capture_names().any(|name| {
-                name.filter(|name| name == &ID_REGEX_MATCHING_GROUP_NAME)
-                    .is_some()
-            });
-
-            if !has_id_group {
-                bail!(
-                    "Platform {}'s regex for playlist URL matching is missing the '{}' capture group: {}",
-                    ie_key.bright_cyan(),
-                    ID_REGEX_MATCHING_GROUP_NAME.bright_yellow(),
-                    config.videos_url_regex.bright_yellow()
-                );
-            }
-
-            Ok((ie_key, regexes))
-        })
-        .collect::<Result<HashMap<_, _>>>()
 }
 
 fn build_approximate_indexes(
@@ -485,11 +407,6 @@ fn remove_downloaded_entries(from: Cache) -> Result<Cache> {
             .filter(|video| !indexes.get(&video.sync_dir).expect("Internal consistency error: failed to get index for given video's sync. directory").contains(&video.id))
             .collect::<Vec<_>>(),
     ))
-}
-
-struct PlatformMatchingRegexes {
-    platform_url_matcher: Regex,
-    id_from_video_url: Regex,
 }
 
 struct PlaylistUrl {

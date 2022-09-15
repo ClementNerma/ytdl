@@ -3,7 +3,10 @@
 
 mod cmd;
 mod config;
+mod dl;
 mod logging;
+mod platforms;
+mod shell;
 mod sync;
 mod ytdlp;
 
@@ -17,6 +20,7 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use colored::Colorize;
 use dirs::config_dir;
+use dl::download;
 use std::{env, fs};
 
 fn main() {
@@ -28,10 +32,12 @@ fn main() {
 
 fn inner_main() -> Result<()> {
     let args = Cmd::parse();
+
     let default_config_path = config_dir()
         .context("Failed to determine path to the configuration directory")?
-        .join("yt-dlp")
+        .join("ytdl")
         .join("config.json");
+
     let config_path = args.config_file.unwrap_or(default_config_path);
 
     if !config_path.is_file() {
@@ -47,9 +53,15 @@ fn inner_main() -> Result<()> {
         bail!("Failed to check YT-DLP: {e}");
     }
 
-    let cwd = env::current_dir().unwrap();
+    let cwd = env::current_dir().context("Failed to get current directory")?;
 
     match args.action {
+        Action::Dl(args) => {
+            download(&args, &config, None, None)?;
+
+            todo!()
+        }
+
         Action::Sync(args) => {
             let cache = build_or_update_cache(&cwd, &config)?;
 

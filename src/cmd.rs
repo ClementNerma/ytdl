@@ -1,4 +1,4 @@
-use crate::sync::SyncArgs;
+use crate::{dl::DlArgs, sync::SyncArgs};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -17,5 +17,6 @@ pub struct Cmd {
 
 #[derive(Subcommand)]
 pub enum Action {
+    Dl(DlArgs),
     Sync(SyncArgs),
 }
