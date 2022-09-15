@@ -31,16 +31,18 @@ lazy_static! {
             .unwrap();
 }
 
-pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache> {
-    let cache_path = sync_dir.join(&config.cache_filename);
+pub fn get_cache_path(sync_dir: &Path, config: &Config) -> PathBuf {
+    sync_dir.join(&config.cache_filename)
+}
 
+pub fn build_or_update_cache(sync_dir: &Path, config: &Config, cache_path: &Path) -> Result<Cache> {
     if !cache_path.exists() {
         let cache = build_cache(sync_dir, config)?;
-        cache.save_to_disk(&cache_path)?;
+        cache.save_to_disk(cache_path)?;
         return Ok(cache);
     }
 
-    let old_cache = Cache::load_from_disk(&cache_path)?;
+    let old_cache = Cache::load_from_disk(cache_path)?;
 
     let old_cache_entries = old_cache.entries.len();
 
@@ -55,7 +57,7 @@ pub fn build_or_update_cache(sync_dir: &Path, config: &Config) -> Result<Cache> 
             updated_cache.entries.len().to_string().bright_yellow()
         );
 
-        updated_cache.save_to_disk(&cache_path)?;
+        updated_cache.save_to_disk(cache_path)?;
     }
 
     Ok(updated_cache)

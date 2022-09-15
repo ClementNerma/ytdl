@@ -43,6 +43,14 @@ macro_rules! error {
 }
 
 #[macro_export]
+macro_rules! error_anyhow {
+    ($error: expr) => {{
+        use colored::Colorize;
+        eprintln!("{}", format!("{:?}", $error).bright_red());
+    }};
+}
+
+#[macro_export]
 macro_rules! warn {
     ($message: tt, $($params: tt)*) => {{
         eprintln!("{}", $crate::_format!(bright_yellow => $message, $($params)*));

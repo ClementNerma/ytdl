@@ -9,9 +9,9 @@ use crate::{
     ytdlp::RawVideoInfos,
 };
 
-pub fn build_platform_matchers(
-    config: &Config,
-) -> Result<HashMap<&String, PlatformMatchingRegexes>> {
+pub type PlatformsMatchers<'a> = HashMap<&'a String, PlatformMatchingRegexes>;
+
+pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
     config
         .platforms
         .iter()
@@ -54,7 +54,7 @@ pub fn build_platform_matchers(
 pub fn find_platform<'a, 'b>(
     url: &str,
     config: &'a Config,
-    matchers: &'b HashMap<&String, PlatformMatchingRegexes>,
+    matchers: &'b PlatformsMatchers,
 ) -> Result<(&'a PlatformConfig, &'b PlatformMatchingRegexes)> {
     for (name, platform_config) in &config.platforms {
         let matcher = matchers
@@ -74,7 +74,7 @@ pub fn find_platform<'a, 'b>(
 
 pub fn determine_video_id(
     video: &RawVideoInfos,
-    platform_matchers: &HashMap<&String, PlatformMatchingRegexes>,
+    platform_matchers: &PlatformsMatchers,
 ) -> Result<String> {
     let matcher = platform_matchers
         .get(&video.ie_key)

@@ -35,6 +35,5 @@ pub fn fetch_playlist(bin: &Path, url: &str) -> Result<RawPlaylist> {
 
 pub fn check_availability(bin: &Path, url: &str) -> Result<bool> {
     // TODO: detect if error is caused by video being unavailable or by another error in YT-DLP
-
     Ok(run_cmd(bin, &["--get-url", url]).is_ok())
 }

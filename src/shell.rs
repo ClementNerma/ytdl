@@ -4,6 +4,7 @@ use std::{
     process::{Command, ExitStatus, Stdio},
 };
 
+use crate::dl::DEFAULT_BEST_FORMAT;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
@@ -98,9 +99,14 @@ pub fn ensure_cmd_success(cmd: &Command, status: &ExitStatus, stderr: &[u8]) -> 
         "Failed to run command (status code = {}).\n\nArguments: {}\n\nSTDERR content:\n\n{}",
         status_code.bright_yellow(),
         cmd.get_args()
-            .map(|arg| format!("'{}'", arg.to_string_lossy().bright_yellow())
-                .bright_cyan()
-                .to_string())
+            .map(|arg| arg.to_string_lossy())
+            // Little hardcoded shortener for a very large and common argument
+            .map(|arg| if arg == DEFAULT_BEST_FORMAT {
+                "builtin:DEFAULT_BEST_FORMAT".bright_magenta()
+            } else {
+                arg.bright_yellow()
+            })
+            .map(|arg| format!("'{}'", arg).bright_cyan().to_string())
             .collect::<Vec<_>>()
             .join(" ")
             .bright_yellow(),
@@ -108,4 +114,4 @@ pub fn ensure_cmd_success(cmd: &Command, status: &ExitStatus, stderr: &[u8]) -> 
     );
 }
 
-pub type ShellErrInspector = Box<dyn Fn(&str)>;
+pub type ShellErrInspector<'a> = &'a dyn Fn(&str);

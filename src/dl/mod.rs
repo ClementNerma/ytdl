@@ -2,20 +2,20 @@ mod cmd;
 mod constants;
 mod repair_date;
 
-use self::constants::{DEFAULT_BEST_FORMAT, DEFAULT_FILENAMING};
+pub use cmd::DlArgs;
+pub use constants::*;
+
 use crate::{
     config::Config,
     dl::repair_date::repair_date,
     info,
-    platforms::{find_platform, PlatformMatchingRegexes},
+    platforms::{find_platform, PlatformsMatchers},
     shell::{run_cmd_bi_outs, ShellErrInspector},
     warn,
 };
 use anyhow::{bail, Context, Result};
-pub use cmd::DlArgs;
 use colored::Colorize;
 use std::{
-    collections::HashMap,
     env, fs,
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
@@ -24,7 +24,7 @@ use std::{
 pub fn download(
     args: &DlArgs,
     config: &Config,
-    platform_matchers: Option<&HashMap<&String, PlatformMatchingRegexes>>,
+    platform_matchers: Option<&PlatformsMatchers>,
     inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
     let mut ytdl_args = vec![
@@ -55,51 +55,50 @@ pub fn download(
         );
     }
 
-    let tmp_dir = args
-        .tmp_dir
-        .as_ref()
-        .map(|dir| {
-            if !dir.is_dir() {
-                bail!(
-                    "Provided directory does not exist at path: {}",
-                    dir.to_string_lossy().bright_magenta()
-                );
-            }
+    let tmp_dir = args.custom_tmp_dir.as_ref().unwrap_or(&config.tmp_dir);
 
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-            Ok(dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros())))
-        })
-        .transpose()?;
+    if !tmp_dir.is_dir() {
+        fs::create_dir(tmp_dir).with_context(|| {
+            format!(
+                "Provided temporary directory does not exist at path: {}",
+                tmp_dir.to_string_lossy().bright_magenta()
+            )
+        })?;
+    }
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let tmp_dir = tmp_dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros()));
 
     let output_dir_display = if output_dir == Path::new(".") || output_dir == cwd {
-        output_dir.to_string_lossy().to_string()
-    } else {
         format!(
             ". ({})",
-            match output_dir.file_name() {
-                Some(file_name) => file_name.to_string_lossy().bright_magenta(),
+            match fs::canonicalize(&output_dir)
+                .context("Failed to canonicalize output directory")?
+                .file_name()
+            {
+                Some(file_name) => file_name.to_string_lossy().bright_cyan(),
                 None => "/".bright_red(),
             }
         )
+    } else {
+        output_dir.to_string_lossy().to_string()
     };
 
-    let is_temp_dir_cwd = tmp_dir.as_ref() == Some(&cwd);
+    let is_temp_dir_cwd = tmp_dir == cwd;
 
     if is_temp_dir_cwd && args.repair_date {
         bail!("Cannot repair date in a non-temporary directory.");
     }
 
-    if let Some(ref tmp_dir) = tmp_dir {
-        if !is_temp_dir_cwd {
-            info!(
-                "> Downloading first to temporary directory: {}",
-                tmp_dir.to_string_lossy().bright_magenta()
-            );
-            info!(
-                "> Then moving to provided final directory: {}",
-                output_dir_display.bright_cyan()
-            );
-        }
+    if !is_temp_dir_cwd {
+        info!(
+            "> Downloading first to temporary directory: {}",
+            tmp_dir.to_string_lossy().bright_magenta()
+        );
+        info!(
+            "> Then moving to provided final directory: {}",
+            output_dir_display.bright_cyan()
+        );
     }
 
     if !args.no_thumbnail {
@@ -144,10 +143,8 @@ pub fn download(
         ytdl_args.push(cookie_file);
     }
 
-    let output_with_filenaming = tmp_dir
-        .as_ref()
-        .unwrap_or(&cwd)
-        .join(args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING));
+    let output_with_filenaming =
+        tmp_dir.join(args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING));
 
     ytdl_args.push("-o");
     ytdl_args.push(
@@ -170,10 +167,9 @@ pub fn download(
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;
 
-    let tmp_dir = match (tmp_dir, is_temp_dir_cwd) {
-        (Some(tmp_dir), false) => tmp_dir,
-        _ => return Ok(()),
-    };
+    if is_temp_dir_cwd {
+        return Ok(());
+    }
 
     let files = fs::read_dir(&tmp_dir)?
         .map(|entry| entry.map(|entry| entry.path()))
@@ -188,7 +184,7 @@ pub fn download(
     }
 
     info!(
-        "> Moving [{}] files to output directory: {}",
+        "> Moving [{}] file(s) to output directory: {}",
         files.len().to_string().bright_yellow(),
         output_dir.to_string_lossy().bright_magenta()
     );
@@ -196,22 +192,28 @@ pub fn download(
     let mut can_cleanup = true;
 
     for (i, file) in files.iter().enumerate() {
-        let colored_file = file.to_string_lossy().bright_black();
-
         info!(
             "> Moving item {} / {}: {}",
             i + 1,
             files.len(),
-            colored_file
+            file.to_string_lossy().bright_black()
         );
 
-        fs::copy(file, &output_dir)
-            .with_context(|| format!("Failed to move downloaded file: {}", colored_file))?;
+        let dest_file_path = &fs::canonicalize(&output_dir)
+            .unwrap()
+            .join(file.file_name().unwrap());
+
+        fs::copy(file, dest_file_path).with_context(|| {
+            format!(
+                "Failed to move downloaded file: {}",
+                file.to_string_lossy().bright_magenta()
+            )
+        })?;
 
         if let Err(err) = fs::remove_file(file) {
             warn!(
                 "Failed to remove temporary download file at path: {}, directory will not be cleaned up (cause: {})",
-                colored_file,
+                file.to_string_lossy().bright_magenta(),
                 err.to_string().bright_yellow()
             );
 

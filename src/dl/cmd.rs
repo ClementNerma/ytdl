@@ -12,9 +12,9 @@ pub struct DlArgs {
 
     #[clap(
         long,
-        help = "Download to a temporary directory before moving it to actual dest."
+        help = "Download to a custom temporary directory instead of the default one"
     )]
-    pub tmp_dir: Option<PathBuf>,
+    pub custom_tmp_dir: Option<PathBuf>,
 
     #[clap(long, help = "Output directory")]
     pub output_dir: Option<PathBuf>,

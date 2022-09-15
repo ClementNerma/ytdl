@@ -13,19 +13,18 @@ mod ytdlp;
 use self::{
     cmd::{Action, Cmd},
     config::Config,
-    sync::{build_or_update_cache, display_sync},
     ytdlp::check_version,
 };
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use colored::Colorize;
 use dirs::config_dir;
 use dl::download;
 use std::{env, fs};
+use sync::sync_dl;
 
 fn main() {
     if let Err(err) = inner_main() {
-        eprintln!("{}", format!("{:?}", err).bright_red());
+        error_anyhow!(err);
         std::process::exit(1);
     }
 }
@@ -56,23 +55,7 @@ fn inner_main() -> Result<()> {
     let cwd = env::current_dir().context("Failed to get current directory")?;
 
     match args.action {
-        Action::Dl(args) => {
-            download(&args, &config, None, None)?;
-
-            todo!()
-        }
-
-        Action::Sync(args) => {
-            let cache = build_or_update_cache(&cwd, &config)?;
-
-            display_sync(&cache);
-
-            if args.dry_run {
-                info!("Dry run completed!");
-                return Ok(());
-            }
-
-            todo!()
-        }
+        Action::Dl(args) => download(&args, &config, None, None),
+        Action::Sync(args) => sync_dl(&args, &config, &cwd),
     }
 }
