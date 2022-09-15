@@ -7,6 +7,7 @@ pub use constants::*;
 
 use crate::{
     config::Config,
+    cookies::cookie_path,
     dl::repair_date::repair_date,
     info,
     platforms::{find_platform, PlatformsMatchers},
@@ -116,7 +117,7 @@ pub fn download(
         .cookie_profile
         .as_ref()
         .map(|profile| {
-            let file = config.cookie_profile_files.get(profile).with_context(|| {
+            let file = cookie_path(profile, config).with_context(|| {
                 format!(
                     "The provided cookie profile '{}' was not found",
                     profile.bright_cyan()
@@ -134,11 +135,11 @@ pub fn download(
                 );
             }
 
-            Ok(file_path)
+            Ok(file_path.to_string())
         })
         .transpose()?;
 
-    if let Some(cookie_file) = cookie_file {
+    if let Some(ref cookie_file) = cookie_file {
         ytdl_args.push("--cookies");
         ytdl_args.push(cookie_file);
     }
@@ -180,7 +181,13 @@ pub fn download(
 
         let (platform, matchers) = repair_date_platform.unwrap();
 
-        repair_date(&files, &config.yt_dlp_bin, platform, matchers, cookie_file)?;
+        repair_date(
+            &files,
+            &config.yt_dlp_bin,
+            platform,
+            matchers,
+            cookie_file.as_deref(),
+        )?;
     }
 
     info!(

@@ -3,6 +3,7 @@
 
 mod cmd;
 mod config;
+mod cookies;
 mod dl;
 mod logging;
 mod platforms;
@@ -35,7 +36,7 @@ fn inner_main() -> Result<()> {
     let default_config_path = config_dir()
         .context("Failed to determine path to the configuration directory")?
         .join("ytdl")
-        .join("config.json");
+        .join("ytdl-config.json");
 
     let config_path = args.config_file.unwrap_or(default_config_path);
 
@@ -46,7 +47,18 @@ fn inner_main() -> Result<()> {
     let config = fs::read_to_string(&config_path)
         .unwrap_or_else(|e| format!("Failed to read config file: {e}"));
 
-    let config = Config::decode(&config)?;
+    let mut config = Config::decode(&config)?;
+
+    if !config.cookies_dir.is_absolute() {
+        config.cookies_dir = config_path.parent().unwrap().join(&config.cookies_dir);
+    }
+
+    if !config.cookies_dir.is_dir() {
+        bail!(
+            "Cookies directory was not found at: {}",
+            config.cookies_dir.display()
+        );
+    }
 
     if let Err(e) = check_version(&config.yt_dlp_bin) {
         bail!("Failed to check YT-DLP: {e}");

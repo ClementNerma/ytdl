@@ -6,6 +6,7 @@ use inquire::Confirm;
 
 use crate::{
     config::{Config, PlatformConfig},
+    cookies::cookie_path,
     dl::{download, DlArgs},
     error, error_anyhow, info, info_inline,
     platforms::{build_platform_matchers, PlatformsMatchers},
@@ -146,9 +147,7 @@ fn sync_single(
         .cookie_profile
         .as_ref()
         .map(|name| {
-            config
-                .cookie_profile_files
-                .get(name)
+            cookie_path(name, config)
                 .map(|path| (name, path))
                 .with_context(|| {
                     format!(

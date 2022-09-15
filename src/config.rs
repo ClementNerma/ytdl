@@ -5,6 +5,7 @@ use std::{collections::HashMap, path::PathBuf};
 #[derive(Deserialize)]
 pub struct Config {
     pub yt_dlp_bin: PathBuf,
+    pub cookies_dir: PathBuf,
     pub tmp_dir: PathBuf,
     pub url_filename: String,
     pub cache_filename: String,
@@ -12,7 +13,6 @@ pub struct Config {
     pub custom_blacklist_filename: String,
     pub default_bandwidth_limit: String,
     pub platforms: HashMap<String, PlatformConfig>,
-    pub cookie_profile_files: HashMap<String, PathBuf>,
 }
 
 impl Config {
