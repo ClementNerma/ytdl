@@ -134,6 +134,8 @@ pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> 
         bail!("Failed with {} errors", failed.to_string().bright_yellow());
     }
 
+    fs::remove_file(&cache_path).context("Failed to remove the cache file")?;
+
     Ok(())
 }
 
