@@ -21,15 +21,17 @@ use super::{
 use crate::{
     config::Config,
     error, info, info_inline,
-    platforms::{build_platform_matchers, determine_video_id, find_platform},
+    platforms::{
+        build_platform_matchers, determine_video_id, find_platform, ID_REGEX_MATCHING_GROUP_NAME,
+    },
     success, warn,
     ytdlp::{check_availability, fetch_playlist},
 };
 
 lazy_static! {
-    static ref VIDEO_ID: Regex = Regex::new(pomsky!(
+    pub static ref VIDEO_ID_REGEX: Regex = Regex::new(pomsky!(
         let ext = "mp4"|"mkv"|"webm"|"mov"|"avi"|"mp3"|"ogg"|"flac"|"alac"|"aac"|"3gp"|"wav"|"aiff"|"dsf";
-        Start '-' Codepoint+ '.' ext End
+        '-' :id(['a'-'z' 'A'-'Z' '0'-'9' '_']+) '.' ext End
     )).unwrap();
 }
 
@@ -305,24 +307,9 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>> {
             }
         };
 
-        if let Some(m) = VIDEO_ID.captures(filename) {
-            let id = m.get(1).unwrap().as_str();
-
-            if !id.contains('-') {
-                // if !ids.insert(id.to_string()) {
-                //     warn!("Two files were found with the same video identifier: {id}");
-                // }
-
-                ids.insert(id.to_string());
-                continue;
-            }
-
-            let mut res = vec![];
-
-            for segment in id.split('-').rev() {
-                res.push(segment);
-                ids.insert(res.iter().rev().cloned().collect::<Vec<_>>().join("-"));
-            }
+        if let Some(m) = VIDEO_ID_REGEX.captures(filename) {
+            let id = m.name(ID_REGEX_MATCHING_GROUP_NAME).unwrap().as_str();
+            ids.insert(id.to_string());
         }
     }
 

@@ -1,9 +1,11 @@
 use crate::{
     config::PlatformConfig,
     error, info_inline,
-    platforms::{PlatformMatchingRegexes, ID_REGEX_MATCHING_GROUP_NAME},
+    platforms::ID_REGEX_MATCHING_GROUP_NAME,
     shell::{run_cmd, run_custom_cmd},
-    success, warn,
+    success,
+    sync::VIDEO_ID_REGEX,
+    warn,
 };
 use anyhow::{bail, Context, Result};
 use lazy_static::lazy_static;
@@ -12,16 +14,16 @@ use regex::Regex;
 use std::{path::Path, process::Command};
 
 lazy_static! {
-    static ref UPLOAD_DATE_REGEX: Regex =
-        Regex::new(pomsky!(Start :year("20" [digit]{2}) :month([digit]{2}) :day([digit]){2} End))
-            .unwrap();
+    static ref UPLOAD_DATE_REGEX: Regex = Regex::new(pomsky!(
+        Start :year("20" [digit]{2}) :month([digit]{2}) :day([digit]{2}) End
+    ))
+    .unwrap();
 }
 
 pub fn repair_date<P: AsRef<Path>>(
     files: &[P],
     yt_dlp_bin: &Path,
     platform: &PlatformConfig,
-    matchers: &PlatformMatchingRegexes,
     cookie_file: Option<&str>,
 ) -> Result<()> {
     let counter_len = files.len().to_string().len();
@@ -43,7 +45,7 @@ pub fn repair_date<P: AsRef<Path>>(
             }
         };
 
-        let video_id = match matchers.id_from_video_url.captures(file_name) {
+        let video_id = match VIDEO_ID_REGEX.captures(file_name) {
             Some(m) => m.name(ID_REGEX_MATCHING_GROUP_NAME).unwrap().as_str(),
             None => {
                 warn!(
@@ -56,10 +58,15 @@ pub fn repair_date<P: AsRef<Path>>(
         };
 
         info_inline!(
-            "| Treating video {:>width$} / {}: {} {} ",
-            i + 1,
-            files.len(),
+            "| Treating video {:>width$} / {}: {} [{}] ",
+            (i + 1).to_string().bright_yellow(),
+            files.len().to_string().bright_yellow(),
             video_id.bright_black(),
+            file_name
+                .chars()
+                .take(50)
+                .collect::<String>()
+                .bright_magenta(),
             width = counter_len
         );
 
@@ -81,17 +88,17 @@ pub fn repair_date<P: AsRef<Path>>(
             }
 
             Ok(date) => {
+                // Necessary as YT-DLP will output two newlines after the date
+                let date = date.trim();
+
                 if date == "NA" {
                     warn!("NO DATE FOUND");
                     warnings += 1;
                     continue;
                 }
 
-                if let Err(err) = set_ytdlp_upload_date(file, &date) {
-                    error!(
-                        "FAILED TO SET DATE (see below){}\n",
-                        err.to_string().bright_yellow()
-                    );
+                if let Err(err) = set_ytdlp_upload_date(file, date) {
+                    error!("FAILED TO SET DATE\n{}", err.to_string().bright_red());
                     errors += 1;
                     continue;
                 }

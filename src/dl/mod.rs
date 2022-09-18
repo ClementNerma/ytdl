@@ -179,15 +179,9 @@ pub fn download(
     if args.repair_date {
         info!("> Repairing date as requested");
 
-        let (platform, matchers) = repair_date_platform.unwrap();
+        let (platform, _) = repair_date_platform.unwrap();
 
-        repair_date(
-            &files,
-            &config.yt_dlp_bin,
-            platform,
-            matchers,
-            cookie_file.as_deref(),
-        )?;
+        repair_date(&files, &config.yt_dlp_bin, platform, cookie_file.as_deref())?;
     }
 
     info!(
