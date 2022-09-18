@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
+use pomsky_macro::pomsky;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use std::{
@@ -26,9 +27,10 @@ use crate::{
 };
 
 lazy_static! {
-    static ref VIDEO_ID: Regex =
-        Regex::new(r"-(.*)\.(mp4|mkv|webm|mov|avi|mp3|ogg|flac|alac|aac|3gp|wav|aiff|dsf)$")
-            .unwrap();
+    static ref VIDEO_ID: Regex = Regex::new(pomsky!(
+        let ext = "mp4"|"mkv"|"webm"|"mov"|"avi"|"mp3"|"ogg"|"flac"|"alac"|"aac"|"3gp"|"wav"|"aiff"|"dsf";
+        Start '-' Codepoint+ '.' ext End
+    )).unwrap();
 }
 
 pub fn get_cache_path(sync_dir: &Path, config: &Config) -> PathBuf {

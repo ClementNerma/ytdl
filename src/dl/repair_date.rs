@@ -7,12 +7,14 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use lazy_static::lazy_static;
+use pomsky_macro::pomsky;
 use regex::Regex;
 use std::{path::Path, process::Command};
 
 lazy_static! {
     static ref UPLOAD_DATE_REGEX: Regex =
-        Regex::new(r"^(?P<year>20\d\d)(?P<month>\d\d)(?P<day>\d\d)").unwrap();
+        Regex::new(pomsky!(Start :year("20" [digit]{2}) :month([digit]{2}) :day([digit]){2} End))
+            .unwrap();
 }
 
 pub fn repair_date<P: AsRef<Path>>(

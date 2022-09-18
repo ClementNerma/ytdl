@@ -6,6 +6,7 @@ use regex::Regex;
 
 use crate::{
     config::{Config, PlatformConfig},
+    regex::compile_pomsky,
     ytdlp::RawVideoInfos,
 };
 
@@ -17,14 +18,14 @@ pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
         .iter()
         .map(|(ie_key, config)| {
             let platform = PlatformMatchingRegexes {
-                platform_url_matcher: Regex::new(&config.playlists_url_regex).with_context(|| {
+                platform_url_matcher: compile_pomsky(&config.playlists_url_regex).with_context(|| {
                     format!(
                         "Platform {} has an invalid regex for playlist URL matching",
                         ie_key.bright_cyan(),
                     )
                 })?,
 
-                id_from_video_url: Regex::new(&config.videos_url_regex).with_context(|| {
+                id_from_video_url: compile_pomsky(&config.videos_url_regex).with_context(|| {
                     format!(
                         "Platform {} has an invalid regex for playlist URL matching",
                         ie_key.bright_cyan(),
@@ -110,4 +111,4 @@ pub struct PlatformMatchingRegexes {
     pub id_from_video_url: Regex,
 }
 
-pub static ID_REGEX_MATCHING_GROUP_NAME: &str = "ID";
+pub static ID_REGEX_MATCHING_GROUP_NAME: &str = "id";

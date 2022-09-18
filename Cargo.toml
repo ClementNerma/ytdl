@@ -1,6 +1,6 @@
 [package]
 name = "ytdl"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 
 [dependencies]
@@ -18,3 +18,5 @@ anyhow = "1.0.65"
 termsize = "0.1.6"
 inquire = "0.3.0"
 time = { version = "0.3.14", features = ["formatting", "parsing", "local-offset"] }
+pomsky = "0.7.0"
+pomsky-macro = "0.7.0"
