@@ -71,15 +71,25 @@ pub fn download(
     let tmp_dir = tmp_dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros()));
 
     let output_dir_display = if output_dir == Path::new(".") || output_dir == cwd {
+        // HACK: workaround the fact that canonicalize can fail with the "symbolic link loop" error on WSL 2
+        let mut output_dir = if output_dir.is_absolute() {
+            output_dir.clone()
+        } else {
+            cwd.join(&output_dir)
+        };
+
+        if output_dir.ends_with(".") {
+            output_dir.pop();
+        }
+        // End of HACK
+
         format!(
             ". ({})",
-            match fs::canonicalize(&output_dir)
-                .context("Failed to canonicalize output directory")?
+            output_dir
                 .file_name()
-            {
-                Some(file_name) => file_name.to_string_lossy().bright_cyan(),
-                None => "/".bright_red(),
-            }
+                .unwrap()
+                .to_string_lossy()
+                .bright_magenta()
         )
     } else {
         output_dir.to_string_lossy().to_string()
