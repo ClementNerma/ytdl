@@ -200,11 +200,7 @@ pub fn download(
             file.to_string_lossy().bright_black()
         );
 
-        let dest_file_path = &fs::canonicalize(&output_dir)
-            .unwrap()
-            .join(file.file_name().unwrap());
-
-        fs::copy(file, dest_file_path).with_context(|| {
+        fs::copy(file, output_dir.join(file.file_name().unwrap())).with_context(|| {
             format!(
                 "Failed to move downloaded file: {}",
                 file.to_string_lossy().bright_magenta()
