@@ -95,7 +95,7 @@ pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> 
     loop {
         i += 1;
 
-        if i >= entries.len() {
+        if i > entries.len() {
             break;
         }
 
