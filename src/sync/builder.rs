@@ -31,7 +31,7 @@ use crate::{
 lazy_static! {
     pub static ref VIDEO_ID_REGEX: Regex = Regex::new(pomsky!(
         let ext = "mp4"|"mkv"|"webm"|"mov"|"avi"|"mp3"|"ogg"|"flac"|"alac"|"aac"|"3gp"|"wav"|"aiff"|"dsf";
-        '-' :id(['a'-'z' 'A'-'Z' '0'-'9' '_']+) '.' ext End
+        '-' :id(['a'-'z' 'A'-'Z' '0'-'9' '_' '-']+) '.' ext End
     )).unwrap();
 }
 
@@ -309,7 +309,18 @@ fn build_approximate_index(dir: &Path) -> Result<HashSet<String>> {
 
         if let Some(m) = VIDEO_ID_REGEX.captures(filename) {
             let id = m.name(ID_REGEX_MATCHING_GROUP_NAME).unwrap().as_str();
-            ids.insert(id.to_string());
+
+            if !id.contains('-') {
+                ids.insert(id.to_string());
+                continue;
+            }
+
+            let mut res = vec![];
+
+            for segment in id.split('-').rev() {
+                res.push(segment);
+                ids.insert(res.iter().rev().cloned().collect::<Vec<_>>().join("-"));
+            }
         }
     }
 
