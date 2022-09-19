@@ -92,7 +92,7 @@ pub fn download(
         );
         info!(
             "> Then moving to provided final directory: {}",
-            output_dir_display.bright_cyan()
+            output_dir_display.bright_magenta()
         );
     }
 
