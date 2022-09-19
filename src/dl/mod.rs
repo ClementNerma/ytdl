@@ -167,7 +167,7 @@ pub fn download(
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<Result<Vec<_>, std::io::Error>>()?;
 
-    let repair_dates = if !args.skip_repair_date {
+    let repair_dates = if !args.skip_repair_date && platform.skip_repair_date != Some(true) {
         info!("> Repairing date as requested");
 
         Some(repair_date(
