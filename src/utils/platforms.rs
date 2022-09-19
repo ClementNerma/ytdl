@@ -27,7 +27,7 @@ pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
 
                 id_from_video_url: compile_pomsky(&config.videos_url_regex).with_context(|| {
                     format!(
-                        "Platform {} has an invalid regex for playlist URL matching",
+                        "Platform {} has an invalid regex for videos URL matching",
                         ie_key.bright_cyan(),
                     )
                 })?,
