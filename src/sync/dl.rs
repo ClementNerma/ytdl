@@ -115,7 +115,7 @@ pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> 
 
     let mut failed = 0;
 
-    let mut retrying = false;
+    let mut retrying = None;
     let mut i = 0;
 
     loop {
@@ -138,7 +138,7 @@ pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> 
         if let Err(err) = sync_single(entry, platform, &matchers, config) {
             error_anyhow!(err);
 
-            if retrying {
+            if retrying == Some(i) {
                 error!("Failed twice on this item, skipping it.");
                 failed += 1;
                 continue;
@@ -146,7 +146,7 @@ pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> 
 
             warn!("");
             warn!("Failed on this video, waiting 5 seconds before retrying...");
-            retrying = true;
+            retrying = Some(i);
 
             std::thread::sleep(Duration::from_secs(5));
 
