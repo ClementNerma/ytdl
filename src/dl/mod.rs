@@ -9,8 +9,8 @@ use crate::{
     config::Config,
     cookies::existing_cookie_path,
     dl::repair_date::{apply_mtime, repair_date},
-    error, info,
-    platforms::{find_platform, PlatformsMatchers},
+    info,
+    platforms::{find_platform, PlatformsMatchers, ID_REGEX_MATCHING_GROUP_NAME},
     shell::{run_cmd_bi_outs, ShellErrInspector},
     success,
 };
@@ -154,7 +154,16 @@ pub fn download(
         ytdl_args.push(arg);
     }
 
-    let (platform, _) = find_platform(&args.url, config, platform_matchers)?;
+    let (platform, matchers) = find_platform(&args.url, config, platform_matchers)?;
+
+    let video_id = matchers
+        .id_from_video_url
+        .captures(&args.url)
+        .context("Failed to extract video ID from URL using the platform's matcher")?
+        .name(ID_REGEX_MATCHING_GROUP_NAME)
+        .unwrap()
+        .as_str()
+        .to_string();
 
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;
@@ -163,98 +172,80 @@ pub fn download(
         return Ok(());
     }
 
-    let files = fs::read_dir(&tmp_dir)?
-        .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<Result<Vec<_>, std::io::Error>>()?;
+    let mut files =
+        fs::read_dir(&tmp_dir).context("Failed to read the temporary download directory")?;
+
+    let video_file = files
+        .next()
+        .context("No file found in the temporary download directory")?
+        .context("Failed to get informations on the downloaded video file")?
+        .path();
+
+    if files.next().is_some() {
+        bail!("Found more than one video in the temporary download directory");
+    }
+
+    assert!(
+        video_file.is_file(),
+        "Found non-file item in the temporary download directory: {}",
+        video_file.display()
+    );
 
     let repair_dates = if !args.skip_repair_date && platform.skip_repair_date != Some(true) {
         info!("> Repairing date as requested");
 
-        Some(repair_date(
-            &files,
+        repair_date(
+            &video_file,
+            &video_id,
             &config.yt_dlp_bin,
             platform,
             cookie_file.as_deref(),
-        )?)
+        )?
     } else {
         None
     };
 
     info!(
-        "> Moving [{}] file(s) to output directory: {}",
-        files.len().to_string().bright_yellow(),
+        "> Moving the download file to output directory: {}...",
         output_dir.to_string_lossy().bright_magenta()
     );
 
-    let mut can_cleanup = true;
+    fs::copy(
+        &video_file,
+        output_dir.join(video_file.file_name().unwrap()),
+    )
+    .with_context(|| {
+        format!(
+            "Failed to move downloaded file: {}",
+            video_file.to_string_lossy().bright_magenta()
+        )
+    })?;
 
-    for (i, file) in files.iter().enumerate() {
-        assert!(
-            file.is_file(),
-            "Found non-file item in the temporary download directory: {}",
-            file.display()
-        );
+    fs::remove_file(&video_file).with_context(|| format!("Failed to remove temporary download file at path: {}, directory will not be cleaned up",
+                video_file.to_string_lossy().bright_magenta()
+                ))?;
 
-        let file_name = file.file_name().unwrap();
+    if let Some(date) = repair_dates {
+        info!("> Applying repaired date...");
 
-        info!(
-            "> Moving item {} / {}: {}",
-            (i + 1).to_string().bright_yellow(),
-            files.len().to_string().bright_yellow(),
-            file_name.to_string_lossy().bright_black()
-        );
+        let file = &video_file.strip_prefix(&tmp_dir).unwrap();
 
-        fs::copy(file, output_dir.join(file_name)).with_context(|| {
+        apply_mtime(file, date).with_context(|| {
             format!(
-                "Failed to move downloaded file: {}",
-                file.to_string_lossy().bright_magenta()
+                "Failed to apply modification time for file '{}'",
+                file.display()
             )
         })?;
-
-        if let Err(err) = fs::remove_file(file) {
-            error!(
-                "Failed to remove temporary download file at path: {}, directory will not be cleaned up (cause: {})",
-                file.to_string_lossy().bright_magenta(),
-                err.to_string().bright_yellow()
-            );
-
-            can_cleanup = false;
-        }
-    }
-
-    if let Some(dates) = repair_dates {
-        let total_str = dates.len().to_string().bright_yellow();
-        info!("> Applying repaired dates to {} files", total_str);
-
-        for (i, (file, date)) in dates.into_iter().enumerate() {
-            let file = file.strip_prefix(&tmp_dir).unwrap();
-
-            info!(
-                "| Treating video {} / {}: {}",
-                (i + 1).to_string().bright_yellow(),
-                total_str,
-                file.to_string_lossy().bright_magenta()
-            );
-
-            apply_mtime(file, date).with_context(|| {
-                format!(
-                    "Failed to apply modification time for file '{}'",
-                    file.display()
-                )
-            })?;
-        }
 
         success!("> Successfully repaired dates!");
     }
 
-    if can_cleanup {
-        fs::remove_dir(&tmp_dir).with_context(|| {
-            format!(
-                "Failed to remove temporary directory at path: {}",
-                tmp_dir.to_string_lossy().bright_magenta()
-            )
-        })?;
-    }
+    fs::remove_dir(&tmp_dir).with_context(|| {
+        format!(
+            "Failed to remove temporary directory at path: {}",
+            tmp_dir.to_string_lossy().bright_magenta()
+        )
+    })?;
 
     success!("> Done!");
 
