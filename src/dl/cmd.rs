@@ -29,7 +29,7 @@ pub struct DlArgs {
     pub cookie_profile: Option<String>,
 
     #[clap(long, help = "Repair every videos' date after download")]
-    pub repair_date: bool,
+    pub skip_repair_date: bool,
 
     #[clap(long, help = "Don't download any thumbnail")]
     pub no_thumbnail: bool,

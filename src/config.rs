@@ -30,5 +30,5 @@ pub struct PlatformConfig {
     pub needs_checking: Option<bool>,
     pub rate_limited: Option<bool>,
     pub cookie_profile: Option<String>,
-    pub repair_date: Option<bool>,
+    pub skip_repair_date: Option<bool>,
 }

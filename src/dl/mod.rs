@@ -81,7 +81,7 @@ pub fn download(
 
     let is_temp_dir_cwd = tmp_dir == cwd;
 
-    if is_temp_dir_cwd && args.repair_date {
+    if is_temp_dir_cwd && !args.skip_repair_date {
         bail!("Cannot repair date in a non-temporary directory.");
     }
 
@@ -155,7 +155,7 @@ pub fn download(
     }
 
     let repair_date_platform = platform_matchers
-        .filter(|_| args.repair_date)
+        .filter(|_| !args.skip_repair_date)
         .map(|matchers| find_platform(&args.url, config, matchers))
         .transpose()?;
 
@@ -170,7 +170,7 @@ pub fn download(
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<Result<Vec<_>, std::io::Error>>()?;
 
-    let repair_dates = if args.repair_date {
+    let repair_dates = if !args.skip_repair_date {
         info!("> Repairing date as requested");
 
         let (platform, _) = repair_date_platform.unwrap();

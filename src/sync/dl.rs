@@ -188,7 +188,7 @@ fn sync_single(
                     ),
                 })
                 .transpose()?,
-            repair_date: platform.repair_date.unwrap_or(false),
+            skip_repair_date: platform.skip_repair_date.unwrap_or(false),
             no_thumbnail: false,
             forward: vec![],
         },
