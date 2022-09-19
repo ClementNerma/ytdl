@@ -1,6 +1,6 @@
 use crate::{
     config::PlatformConfig,
-    error, info_inline,
+    error, error_anyhow, info_inline,
     platforms::ID_REGEX_MATCHING_GROUP_NAME,
     shell::{run_cmd, run_custom_cmd},
     success,
@@ -93,8 +93,9 @@ pub fn repair_date<P: AsRef<Path>>(
         args.push(&url);
 
         match run_cmd(yt_dlp_bin, &args) {
-            Err(_) => {
+            Err(err) => {
                 error!("FAILED");
+                error_anyhow!(err);
                 errors += 1;
                 continue;
             }
