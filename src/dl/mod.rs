@@ -73,7 +73,7 @@ pub fn download(
     let output_dir_display = if output_dir == Path::new(".") || output_dir == cwd {
         format!(
             ". ({})",
-            cwd.file_name().unwrap().to_string_lossy().bright_magenta()
+            cwd.file_name().unwrap().to_string_lossy().bright_cyan()
         )
     } else {
         output_dir.to_string_lossy().to_string()
