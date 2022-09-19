@@ -11,7 +11,11 @@ use anyhow::{bail, Context, Result};
 use lazy_static::lazy_static;
 use pomsky_macro::pomsky;
 use regex::Regex;
-use std::{path::Path, process::Command};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 lazy_static! {
     static ref UPLOAD_DATE_REGEX: Regex = Regex::new(pomsky!(
@@ -25,13 +29,21 @@ pub fn repair_date<P: AsRef<Path>>(
     yt_dlp_bin: &Path,
     platform: &PlatformConfig,
     cookie_file: Option<&str>,
-) -> Result<()> {
+) -> Result<HashMap<PathBuf, UploadDate>> {
     let counter_len = files.len().to_string().len();
     let mut warnings = 0;
     let mut errors = 0;
 
+    let mut dates = HashMap::new();
+
     for (i, file) in files.iter().enumerate() {
         let file = file.as_ref();
+
+        assert!(
+            file.is_file(),
+            "Found a non-file item in repair date directory: {}",
+            file.display()
+        );
 
         let file_name = match file.file_name().and_then(|file_name| file_name.to_str()) {
             Some(path) => path,
@@ -41,7 +53,7 @@ pub fn repair_date<P: AsRef<Path>>(
                 file.to_string_lossy().bright_magenta()
             );
 
-                return Ok(());
+                continue;
             }
         };
 
@@ -53,7 +65,7 @@ pub fn repair_date<P: AsRef<Path>>(
                     file_name.bright_magenta()
                 );
 
-                return Ok(());
+                continue;
             }
         };
 
@@ -97,10 +109,16 @@ pub fn repair_date<P: AsRef<Path>>(
                     continue;
                 }
 
-                if let Err(err) = set_ytdlp_upload_date(file, date) {
-                    error!("FAILED TO SET DATE\n{}", err.to_string().bright_red());
-                    errors += 1;
-                    continue;
+                match set_ytdlp_upload_date(file, date) {
+                    Ok(date) => {
+                        dates.insert(file.to_path_buf(), date);
+                    }
+
+                    Err(err) => {
+                        error!("FAILED TO SET DATE\n{}", err.to_string().bright_red());
+                        errors += 1;
+                        continue;
+                    }
                 }
             }
         }
@@ -113,29 +131,51 @@ pub fn repair_date<P: AsRef<Path>>(
     }
 
     if errors > 0 {
-        error!("Emitted {errors} errors!");
-        bail!("Failed with {errors} errors");
+        error!("> Emitted {errors} errors!");
+        bail!("> Failed with {errors} errors");
     }
 
-    Ok(())
+    if warnings == 0 {
+        success!("> Successfully repaired dates!");
+    }
+
+    Ok(dates)
 }
 
-fn set_ytdlp_upload_date(file: &Path, date: &str) -> Result<()> {
-    let m = UPLOAD_DATE_REGEX.captures(date).context("Invalid date")?;
-
-    let year = m.name("year").unwrap().as_str().parse::<i32>().unwrap();
-    let month = m.name("month").unwrap().as_str().parse::<u8>().unwrap();
-    let day = m.name("day").unwrap().as_str().parse::<u8>().unwrap();
-
+pub fn apply_mtime(file: &Path, date: UploadDate) -> Result<()> {
     // TODO: find a more proper way to do this
     run_custom_cmd(
         Command::new("touch")
             .arg(file)
             .arg("-m")
             .arg("-d")
-            .arg(&format!("{:0>4}{:0>2}{:0>2}", year, month, day)),
+            .arg(&format!(
+                "{:0>4}{:0>2}{:0>2}",
+                date.year, date.month, date.day
+            )),
     )
     .context("Failed to run 'touch' command for modification date")?;
 
     Ok(())
+}
+
+fn set_ytdlp_upload_date(file: &Path, date: &str) -> Result<UploadDate> {
+    let m = UPLOAD_DATE_REGEX.captures(date).context("Invalid date")?;
+
+    let date = UploadDate {
+        year: m.name("year").unwrap().as_str().parse::<i32>().unwrap(),
+        month: m.name("month").unwrap().as_str().parse::<u8>().unwrap(),
+        day: m.name("day").unwrap().as_str().parse::<u8>().unwrap(),
+    };
+
+    apply_mtime(file, date)?;
+
+    Ok(date)
+}
+
+#[derive(Clone, Copy)]
+pub struct UploadDate {
+    year: i32,
+    month: u8,
+    day: u8,
 }

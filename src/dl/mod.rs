@@ -8,11 +8,11 @@ pub use constants::*;
 use crate::{
     config::Config,
     cookies::existing_cookie_path,
-    dl::repair_date::repair_date,
-    info,
+    dl::repair_date::{apply_mtime, repair_date},
+    error, info,
     platforms::{find_platform, PlatformsMatchers},
     shell::{run_cmd_bi_outs, ShellErrInspector},
-    warn,
+    success,
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
@@ -170,13 +170,20 @@ pub fn download(
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<Result<Vec<_>, std::io::Error>>()?;
 
-    if args.repair_date {
+    let repair_dates = if args.repair_date {
         info!("> Repairing date as requested");
 
         let (platform, _) = repair_date_platform.unwrap();
 
-        repair_date(&files, &config.yt_dlp_bin, platform, cookie_file.as_deref())?;
-    }
+        Some(repair_date(
+            &files,
+            &config.yt_dlp_bin,
+            platform,
+            cookie_file.as_deref(),
+        )?)
+    } else {
+        None
+    };
 
     info!(
         "> Moving [{}] file(s) to output directory: {}",
@@ -187,14 +194,22 @@ pub fn download(
     let mut can_cleanup = true;
 
     for (i, file) in files.iter().enumerate() {
-        info!(
-            "> Moving item {} / {}: {}",
-            i + 1,
-            files.len(),
-            file.to_string_lossy().bright_black()
+        assert!(
+            file.is_file(),
+            "Found non-file item in the temporary download directory: {}",
+            file.display()
         );
 
-        fs::copy(file, output_dir.join(file.file_name().unwrap())).with_context(|| {
+        let file_name = file.file_name().unwrap();
+
+        info!(
+            "> Moving item {} / {}: {}",
+            (i + 1).to_string().bright_yellow(),
+            files.len().to_string().bright_yellow(),
+            file_name.to_string_lossy().bright_black()
+        );
+
+        fs::copy(file, output_dir.join(file_name)).with_context(|| {
             format!(
                 "Failed to move downloaded file: {}",
                 file.to_string_lossy().bright_magenta()
@@ -202,7 +217,7 @@ pub fn download(
         })?;
 
         if let Err(err) = fs::remove_file(file) {
-            warn!(
+            error!(
                 "Failed to remove temporary download file at path: {}, directory will not be cleaned up (cause: {})",
                 file.to_string_lossy().bright_magenta(),
                 err.to_string().bright_yellow()
@@ -210,6 +225,31 @@ pub fn download(
 
             can_cleanup = false;
         }
+    }
+
+    if let Some(dates) = repair_dates {
+        let total_str = dates.len().to_string().bright_yellow();
+        info!("> Applying repaired dates to {} files", total_str);
+
+        for (i, (file, date)) in dates.into_iter().enumerate() {
+            let file = file.strip_prefix(&tmp_dir).unwrap();
+
+            info!(
+                "| Treating video {} / {}: {}",
+                (i + 1).to_string().bright_yellow(),
+                total_str,
+                file.to_string_lossy().bright_magenta()
+            );
+
+            apply_mtime(file, date).with_context(|| {
+                format!(
+                    "Failed to apply modification time for file '{}'",
+                    file.display()
+                )
+            })?;
+        }
+
+        success!("> Successfully repaired dates!");
     }
 
     if can_cleanup {
@@ -221,7 +261,7 @@ pub fn download(
         })?;
     }
 
-    info!("Done!");
+    success!("> Done!");
 
     Ok(())
 }
