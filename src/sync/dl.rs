@@ -193,7 +193,7 @@ fn sync_single(
             forward: vec![],
         },
         config,
-        Some(platforms_matchers),
+        platforms_matchers,
         Some(&wait_sync_when_too_many_requests),
     )
 }

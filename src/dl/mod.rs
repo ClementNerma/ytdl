@@ -25,7 +25,7 @@ use std::{
 pub fn download(
     args: &DlArgs,
     config: &Config,
-    platform_matchers: Option<&PlatformsMatchers>,
+    platform_matchers: &PlatformsMatchers,
     inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
     let mut ytdl_args = vec![
@@ -154,10 +154,7 @@ pub fn download(
         ytdl_args.push(arg);
     }
 
-    let repair_date_platform = platform_matchers
-        .filter(|_| !args.skip_repair_date)
-        .map(|matchers| find_platform(&args.url, config, matchers))
-        .transpose()?;
+    let (platform, _) = find_platform(&args.url, config, platform_matchers)?;
 
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;
@@ -172,8 +169,6 @@ pub fn download(
 
     let repair_dates = if !args.skip_repair_date {
         info!("> Repairing date as requested");
-
-        let (platform, _) = repair_date_platform.unwrap();
 
         Some(repair_date(
             &files,

@@ -9,6 +9,7 @@ mod sync;
 mod utils;
 
 use cookies::cookies;
+use utils::platforms::build_platform_matchers;
 pub use utils::*;
 
 use self::{
@@ -67,7 +68,7 @@ fn inner_main() -> Result<()> {
     let cwd = env::current_dir().context("Failed to get current directory")?;
 
     match args.action {
-        Action::Dl(args) => download(&args, &config, None, None),
+        Action::Dl(args) => download(&args, &config, &build_platform_matchers(&config)?, None),
         Action::Sync(args) => sync_dl(&args, &config, &cwd),
         Action::Cookies(args) => cookies(&args, &config),
     }
