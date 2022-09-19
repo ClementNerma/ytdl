@@ -67,10 +67,7 @@ pub fn find_platform<'a, 'b>(
         }
     }
 
-    bail!(
-        "Playlist has unregistered platform given its URL: {}",
-        url.bright_magenta()
-    );
+    bail!("No platform found for provided URL: {}", url.bright_cyan());
 }
 
 pub fn determine_video_id(
