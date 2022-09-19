@@ -18,6 +18,32 @@ use crate::{
 use super::{cache::CacheEntry, SyncArgs};
 
 pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
+    if let Some(url) = &args.url {
+        let sync_file = sync_dir.join(&config.url_filename);
+
+        if sync_file.exists() {
+            let existing_url = fs::read_to_string(&sync_file)
+                .context("Failed to read the synchronization file")?;
+
+            if existing_url == *url {
+                warn!(
+                    "Provided URL is already specified in the synchronization file, doing nothing."
+                );
+            } else {
+                bail!(
+                    "This directory already has a synchronization file with a different URL ({})",
+                    existing_url.bright_cyan()
+                );
+            }
+        } else {
+            info!(
+                "Creating a synchronization file for URL: {}",
+                url.bright_cyan()
+            );
+            fs::write(&sync_file, url).context("Failed to create the synchronization file")?;
+        }
+    }
+
     let cache_path = get_cache_path(sync_dir, config);
 
     let cache = build_or_update_cache(sync_dir, config, &cache_path)?;
