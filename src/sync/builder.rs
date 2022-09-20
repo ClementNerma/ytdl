@@ -391,6 +391,8 @@ fn check_videos_availability(
         }
     }
 
+    info!("");
+
     Ok(available)
 }
 
