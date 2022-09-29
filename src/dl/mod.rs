@@ -210,11 +210,9 @@ pub fn download(
         output_dir.to_string_lossy().bright_magenta()
     );
 
-    fs::copy(
-        &video_file,
-        output_dir.join(video_file.file_name().unwrap()),
-    )
-    .with_context(|| {
+    let output_file = output_dir.join(video_file.file_name().unwrap());
+
+    fs::copy(&video_file, &output_file).with_context(|| {
         format!(
             "Failed to move downloaded file: {}",
             video_file.to_string_lossy().bright_magenta()
@@ -222,18 +220,16 @@ pub fn download(
     })?;
 
     fs::remove_file(&video_file).with_context(|| format!("Failed to remove temporary download file at path: {}, directory will not be cleaned up",
-                video_file.to_string_lossy().bright_magenta()
-                ))?;
+        video_file.to_string_lossy().bright_magenta()
+    ))?;
 
     if let Some(date) = repair_dates {
         info!("> Applying repaired date...");
 
-        let file = &video_file.strip_prefix(&tmp_dir).unwrap();
-
-        apply_mtime(file, date).with_context(|| {
+        apply_mtime(&output_file, date).with_context(|| {
             format!(
                 "Failed to apply modification time for file '{}'",
-                file.display()
+                output_file.display()
             )
         })?;
 
