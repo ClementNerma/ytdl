@@ -92,6 +92,11 @@ pub fn repair_date(
 }
 
 pub fn apply_mtime(file: &Path, date: UploadDate) -> Result<()> {
+    // Guard to ensure the file exists, otherwise `touch` will create it!
+    if !file.is_file() {
+        bail!("Provided file does not exist!");
+    }
+
     // TODO: find a more proper way to do this
     run_custom_cmd(
         Command::new("touch")
