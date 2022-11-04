@@ -180,7 +180,6 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
 
     for playlist in &playlists {
         let (platform, _) = find_platform(&playlist.url, config, &platform_matchers)?;
-
         if platform.rate_limited == Some(true) {
             parallel_fetching = false;
         }
