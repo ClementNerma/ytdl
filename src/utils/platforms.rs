@@ -18,9 +18,9 @@ pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
         .iter()
         .map(|(ie_key, config)| {
             let platform = PlatformMatchingRegexes {
-                platform_url_matcher: compile_pomsky(&config.playlists_url_regex).with_context(|| {
+                platform_url_matcher: compile_pomsky(&config.platform_url_matcher).with_context(|| {
                     format!(
-                        "Platform {} has an invalid regex for playlist URL matching",
+                        "Platform {} has an invalid regex for URL matching",
                         ie_key.bright_cyan(),
                     )
                 })?,

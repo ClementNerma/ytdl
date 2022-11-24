@@ -23,7 +23,7 @@ impl Config {
 
 #[derive(Deserialize)]
 pub struct PlatformConfig {
-    pub playlists_url_regex: String,
+    pub platform_url_matcher: String,
     pub videos_url_regex: String,
     pub videos_url_prefix: String,
     pub bandwidth_limit: Option<String>,
