@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub yt_dlp_bin: PathBuf,
     pub cookies_dir: PathBuf,
@@ -22,6 +23,7 @@ impl Config {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PlatformConfig {
     pub platform_url_matcher: String,
     pub videos_url_regex: String,
