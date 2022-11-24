@@ -75,6 +75,15 @@ pub fn download(
         return Ok(());
     }
 
+    let video_id = matchers
+        .id_from_video_url
+        .captures(&args.url)
+        .context("Failed to extract video ID from URL using the platform's matcher")?
+        .name(ID_REGEX_MATCHING_GROUP_NAME)
+        .unwrap()
+        .as_str()
+        .to_string();
+
     let mut ytdl_args = vec![
         "--format",
         args.format.as_deref().unwrap_or(DEFAULT_BEST_FORMAT),
@@ -192,15 +201,6 @@ pub fn download(
         ytdl_args.push(arg);
     }
 
-    let video_id = matchers
-        .id_from_video_url
-        .captures(&args.url)
-        .context("Failed to extract video ID from URL using the platform's matcher")?
-        .name(ID_REGEX_MATCHING_GROUP_NAME)
-        .unwrap()
-        .as_str()
-        .to_string();
-
     info!(
         "> Downloading video from platform {}{}",
         platform_name.bright_cyan(),
@@ -221,6 +221,7 @@ pub fn download(
         );
     }
 
+    // Actually calling YT-DLP here
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;
 
