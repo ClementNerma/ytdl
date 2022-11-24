@@ -68,6 +68,8 @@ pub fn download(
                 platform_matchers,
                 inspect_dl_err,
             )?;
+
+            info!("");
         }
 
         return Ok(());
