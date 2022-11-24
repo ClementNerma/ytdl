@@ -15,8 +15,8 @@ use time::{format_description::well_known::Iso8601, OffsetDateTime};
 use self::cmd::CookiesAction;
 use crate::{config::Config, cookies::access::cookie_path, info, success, warn};
 
-pub fn cookies(args: &CookiesArgs, config: &Config) -> Result<()> {
-    match &args.action {
+pub fn cookies(args: CookiesArgs, config: &Config) -> Result<()> {
+    match args.action {
         CookiesAction::List => {
             let profiles = fs::read_dir(&config.cookies_dir)
                 .context("Failed to read the cookies directory")?

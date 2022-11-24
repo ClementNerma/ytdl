@@ -22,7 +22,8 @@ use crate::{
     config::Config,
     error, info, info_inline,
     platforms::{
-        build_platform_matchers, determine_video_id, find_platform, ID_REGEX_MATCHING_GROUP_NAME,
+        build_platform_matchers, determine_video_id, find_platform, FoundPlatform,
+        ID_REGEX_MATCHING_GROUP_NAME,
     },
     success, warn,
     ytdlp::{check_availability, fetch_playlist},
@@ -179,8 +180,17 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
     let mut parallel_fetching = true;
 
     for playlist in &playlists {
-        let (platform, _) = find_platform(&playlist.url, config, &platform_matchers)?;
-        if platform.rate_limited == Some(true) {
+        let FoundPlatform {
+            platform_config,
+            matchers: _,
+            is_playlist,
+        } = find_platform(&playlist.url, config, &platform_matchers)?;
+
+        if !is_playlist {
+            bail!("Provided URL is a video, not a playlist!");
+        }
+
+        if platform_config.rate_limited == Some(true) {
             parallel_fetching = false;
         }
     }

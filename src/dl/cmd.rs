@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-#[derive(Args)]
+#[derive(Args, Clone, Default)]
 pub struct DlArgs {
     #[clap(help = "URL of the video/playlist/channel/... to download")]
     pub url: String,

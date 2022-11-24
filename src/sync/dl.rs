@@ -17,7 +17,7 @@ use crate::{
 
 use super::{cache::CacheEntry, SyncArgs};
 
-pub fn sync_dl(args: &SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
+pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
     if let Some(url) = &args.url {
         let sync_file = sync_dir.join(&config.url_filename);
 
@@ -198,25 +198,10 @@ fn sync_single(
     );
 
     download(
-        &DlArgs {
+        DlArgs {
             url: entry.url.clone(),
-            format: None,
-            custom_tmp_dir: None,
             output_dir: Some(entry.sync_dir.clone()),
-            filenaming: None,
-            limit_bandwidth: platform.bandwidth_limit.clone(),
-            cookie_profile: cookie_profile
-                .map(|(_, path)| match path.to_str() {
-                    Some(path) => Ok(path.to_string()),
-                    None => bail!(
-                        "Cookie file path contains invalid UTF-8 characters: {}",
-                        path.to_string_lossy().bright_magenta()
-                    ),
-                })
-                .transpose()?,
-            skip_repair_date: false,
-            no_thumbnail: false,
-            forward: vec![],
+            ..Default::default()
         },
         config,
         platforms_matchers,

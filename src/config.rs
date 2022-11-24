@@ -26,6 +26,7 @@ pub struct PlatformConfig {
     pub platform_url_matcher: String,
     pub videos_url_regex: String,
     pub videos_url_prefix: String,
+    pub playlist_url_matchers: Option<Vec<String>>,
     pub bandwidth_limit: Option<String>,
     pub needs_checking: Option<bool>,
     pub rate_limited: Option<bool>,

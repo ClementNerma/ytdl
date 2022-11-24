@@ -68,8 +68,8 @@ fn inner_main() -> Result<()> {
     let cwd = env::current_dir().context("Failed to get current directory")?;
 
     match args.action {
-        Action::Dl(args) => download(&args, &config, &build_platform_matchers(&config)?, None),
-        Action::Sync(args) => sync_dl(&args, &config, &cwd),
-        Action::Cookies(args) => cookies(&args, &config),
+        Action::Dl(args) => download(args, &config, &build_platform_matchers(&config)?, None),
+        Action::Sync(args) => sync_dl(args, &config, &cwd),
+        Action::Cookies(args) => cookies(args, &config),
     }
 }

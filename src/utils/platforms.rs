@@ -25,6 +25,18 @@ pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
                     )
                 })?,
 
+                playlist_url_matchers: match &config.playlist_url_matchers {
+                    Some(regexes) => regexes.iter()
+                        .map(|regex| {
+                            compile_pomsky(regex).with_context(|| {
+                                format!("Platform {} has an invalid regex for playlist URL matching", ie_key.bright_cyan())
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                    
+                    None => vec![]
+                },
+
                 id_from_video_url: compile_pomsky(&config.videos_url_regex).with_context(|| {
                     format!(
                         "Platform {} has an invalid regex for videos URL matching",
@@ -56,14 +68,32 @@ pub fn find_platform<'a, 'b>(
     url: &str,
     config: &'a Config,
     matchers: &'b PlatformsMatchers,
-) -> Result<(&'a PlatformConfig, &'b PlatformMatchingRegexes)> {
+) -> Result<FoundPlatform<'a, 'b>> {
     for (name, platform_config) in &config.platforms {
-        let matcher = matchers
+        let matchers = matchers
             .get(name)
             .context("Internal consistency error: failed to get platform's matcher")?;
 
-        if matcher.platform_url_matcher.is_match(url) {
-            return Ok((platform_config, matcher));
+        if matchers.id_from_video_url.is_match(url) {
+            return Ok(FoundPlatform {
+                platform_config,
+                matchers,
+                is_playlist: false,
+            });
+        }
+
+        for matcher in &matchers.playlist_url_matchers {
+            if matcher.is_match(url) {
+                return Ok(FoundPlatform {
+                    platform_config,
+                    matchers,
+                    is_playlist: true,
+                });
+            }
+        }
+
+        if matchers.platform_url_matcher.is_match(url) {
+            bail!("Detected URL '{url}' as platform '{name}' but the video and playlist regexes didn't detect it as valid!");
         }
     }
 
@@ -103,8 +133,15 @@ pub fn determine_video_id(
     Ok(id.as_str().to_string())
 }
 
+pub struct FoundPlatform<'a, 'b> {
+    pub platform_config: &'a PlatformConfig,
+    pub matchers: &'b PlatformMatchingRegexes,
+    pub is_playlist: bool,
+}
+
 pub struct PlatformMatchingRegexes {
     pub platform_url_matcher: Regex,
+    pub playlist_url_matchers: Vec<Regex>,
     pub id_from_video_url: Regex,
 }
 

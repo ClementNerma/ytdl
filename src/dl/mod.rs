@@ -10,9 +10,10 @@ use crate::{
     cookies::existing_cookie_path,
     dl::repair_date::{apply_mtime, repair_date},
     info,
-    platforms::{find_platform, PlatformsMatchers, ID_REGEX_MATCHING_GROUP_NAME},
+    platforms::{find_platform, FoundPlatform, PlatformsMatchers, ID_REGEX_MATCHING_GROUP_NAME},
     shell::{run_cmd_bi_outs, ShellErrInspector},
     success,
+    ytdlp::fetch_playlist,
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
@@ -23,17 +24,61 @@ use std::{
 };
 
 pub fn download(
-    args: &DlArgs,
+    args: DlArgs,
     config: &Config,
     platform_matchers: &PlatformsMatchers,
     inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
+    let FoundPlatform {
+        platform_config,
+        matchers,
+        is_playlist,
+    } = find_platform(&args.url, config, platform_matchers)?;
+
+    if is_playlist {
+        info!("Fetching playlist's content...");
+
+        let playlist = fetch_playlist(&config.yt_dlp_bin, &args.url)
+            .context("Failed to fetch the playlist's content")?;
+
+        let colored_total = playlist.entries.len().to_string().bright_yellow();
+
+        info!("Detected {} videos.", colored_total);
+        info!("");
+
+        for (i, video) in playlist.entries.into_iter().enumerate() {
+            info!(
+                "> Downloading video {} / {colored_total}...",
+                (i + 1).to_string().bright_yellow()
+            );
+
+            let cloned = args.clone();
+
+            download(
+                DlArgs {
+                    url: video.url,
+                    cookie_profile: match &platform_config.cookie_profile {
+                        Some(profile) => Some(profile.clone()),
+                        None => cloned.cookie_profile.clone(),
+                    },
+                    ..cloned
+                },
+                config,
+                platform_matchers,
+                inspect_dl_err,
+            )?;
+        }
+
+        return Ok(());
+    }
+
     let mut ytdl_args = vec![
         "--format",
         args.format.as_deref().unwrap_or(DEFAULT_BEST_FORMAT),
         "--limit-rate",
         args.limit_bandwidth
             .as_deref()
+            .or(platform_config.bandwidth_limit.as_deref())
             .unwrap_or(&config.default_bandwidth_limit),
         "--add-metadata",
         "--abort-on-unavailable-fragment",
@@ -110,6 +155,7 @@ pub fn download(
     let cookie_file = args
         .cookie_profile
         .as_ref()
+        .or(platform_config.cookie_profile.as_ref())
         .map(|profile| {
             let file = existing_cookie_path(profile, config).with_context(|| {
                 format!(
@@ -154,8 +200,6 @@ pub fn download(
         ytdl_args.push(arg);
     }
 
-    let (platform, matchers) = find_platform(&args.url, config, platform_matchers)?;
-
     let video_id = matchers
         .id_from_video_url
         .captures(&args.url)
@@ -191,14 +235,14 @@ pub fn download(
         video_file.display()
     );
 
-    let repair_dates = if !args.skip_repair_date && platform.skip_repair_date != Some(true) {
+    let repair_dates = if !args.skip_repair_date && platform_config.skip_repair_date != Some(true) {
         info!("> Repairing date as requested");
 
         repair_date(
             &video_file,
             &video_id,
             &config.yt_dlp_bin,
-            platform,
+            platform_config,
             cookie_file.as_deref(),
         )?
     } else {
