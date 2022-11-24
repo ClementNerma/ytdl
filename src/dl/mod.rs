@@ -86,7 +86,10 @@ pub fn download(
 
     let mut ytdl_args = vec![
         "--format",
-        args.format.as_deref().unwrap_or(DEFAULT_BEST_FORMAT),
+        args.format
+            .as_deref()
+            .or(platform_config.download_format.as_deref())
+            .unwrap_or(DEFAULT_BEST_FORMAT),
         "--limit-rate",
         args.limit_bandwidth
             .as_deref()
