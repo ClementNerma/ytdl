@@ -144,11 +144,9 @@ pub fn download(
     if !args.no_thumbnail {
         ytdl_args.push("--embed-thumbnail");
 
-        if args.url.starts_with("https://www.youtube.com/")
-            || args.url.starts_with("https://music.youtube.com/")
-        {
+        if let Some(format) = &platform_config.output_format {
             ytdl_args.push("--merge-output-format");
-            ytdl_args.push("mkv");
+            ytdl_args.push(&format);
         }
     }
 

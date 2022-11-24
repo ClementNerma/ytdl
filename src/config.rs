@@ -32,4 +32,5 @@ pub struct PlatformConfig {
     pub rate_limited: Option<bool>,
     pub cookie_profile: Option<String>,
     pub skip_repair_date: Option<bool>,
+    pub output_format: Option<String>,
 }
