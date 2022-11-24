@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -14,12 +13,6 @@ pub struct Config {
     pub custom_blacklist_filename: String,
     pub default_bandwidth_limit: String,
     pub platforms: HashMap<String, PlatformConfig>,
-}
-
-impl Config {
-    pub fn decode(input: &str) -> Result<Self> {
-        serde_json::from_str(input).context("Failed to decode provided configuration")
-    }
 }
 
 #[derive(Deserialize)]

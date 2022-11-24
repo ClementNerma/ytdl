@@ -48,7 +48,8 @@ fn inner_main() -> Result<()> {
     let config = fs::read_to_string(&config_path)
         .unwrap_or_else(|e| format!("Failed to read config file: {e}"));
 
-    let mut config = Config::decode(&config)?;
+    let mut config: Config =
+        serde_json::from_str(&config).context("Failed to decode provided configuration")?;
 
     if !config.cookies_dir.is_absolute() {
         config.cookies_dir = config_path.parent().unwrap().join(&config.cookies_dir);
