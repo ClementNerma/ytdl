@@ -30,6 +30,7 @@ pub fn download(
     inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
     let FoundPlatform {
+        platform_name,
         platform_config,
         matchers,
         is_playlist,
@@ -130,17 +131,6 @@ pub fn download(
         bail!("Cannot repair date in a non-temporary directory.");
     }
 
-    if !is_temp_dir_cwd {
-        info!(
-            "> Downloading first to temporary directory: {}",
-            tmp_dir.to_string_lossy().bright_magenta()
-        );
-        info!(
-            "> Then moving to provided final directory: {}",
-            output_dir_display.bright_magenta()
-        );
-    }
-
     if !args.no_thumbnail {
         ytdl_args.push("--embed-thumbnail");
 
@@ -150,10 +140,12 @@ pub fn download(
         }
     }
 
-    let cookie_file = args
+    let cookie_profile = args
         .cookie_profile
         .as_ref()
-        .or(platform_config.cookie_profile.as_ref())
+        .or(platform_config.cookie_profile.as_ref());
+
+    let cookie_file = cookie_profile
         .map(|profile| {
             let file = existing_cookie_path(profile, config).with_context(|| {
                 format!(
@@ -206,6 +198,26 @@ pub fn download(
         .unwrap()
         .as_str()
         .to_string();
+
+    info!(
+        "> Downloading video from platform {}{}",
+        platform_name.bright_cyan(),
+        match cookie_profile {
+            Some(name) => format!(" (with cookie profile {})", name.bright_yellow()),
+            None => String::new(),
+        }
+    );
+
+    if !is_temp_dir_cwd {
+        info!(
+            "> Downloading first to temporary directory: {}",
+            tmp_dir.to_string_lossy().bright_magenta()
+        );
+        info!(
+            "> Then moving to provided final directory: {}",
+            output_dir_display.bright_magenta()
+        );
+    }
 
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;

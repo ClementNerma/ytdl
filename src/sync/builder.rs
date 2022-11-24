@@ -182,8 +182,9 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
     for playlist in &playlists {
         let FoundPlatform {
             platform_config,
-            matchers: _,
             is_playlist,
+            platform_name: _,
+            matchers: _,
         } = find_platform(&playlist.url, config, &platform_matchers)?;
 
         if !is_playlist {

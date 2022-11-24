@@ -5,8 +5,7 @@ use colored::Colorize;
 use inquire::Confirm;
 
 use crate::{
-    config::{Config, PlatformConfig},
-    cookies::existing_cookie_path,
+    config::Config,
     dl::{download, DlArgs},
     error, error_anyhow, info, info_inline,
     platforms::{build_platform_matchers, PlatformsMatchers},
@@ -55,24 +54,26 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
+    let entries = cache.entries;
+
     info!("");
     info!(
         "Going to download {} videos.",
-        cache.entries.len().to_string().bright_yellow()
+        entries.len().to_string().bright_yellow()
     );
 
-    if cache.entries.len() != cache.max_index {
+    if entries.len() != cache.max_index {
         info!(
             "{}",
             format!(
                 "Found {} already downloaded videos.",
-                cache.max_index - cache.entries.len()
+                cache.max_index - entries.len()
             )
             .bright_black()
         );
     }
 
-    if cache.entries.is_empty() {
+    if entries.is_empty() {
         success!("Nothing to download!");
         fs::remove_file(&cache_path)?;
         return Ok(());
@@ -95,21 +96,15 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
-    let entries = cache
-        .entries
-        .into_iter()
-        .map(|entry| -> Result<(CacheEntry, &PlatformConfig)> {
-            let platform = config.platforms.get(&entry.ie_key).with_context(|| {
-                format!(
-                    "Found unregistered IE key '{}' in videos list (video title: {})",
-                    entry.ie_key.bright_yellow(),
-                    entry.title.bright_cyan()
-                )
-            })?;
-
-            Ok((entry, platform))
-        })
-        .collect::<Result<Vec<_>>>()?;
+    for entry in &entries {
+        if !config.platforms.contains_key(&entry.ie_key) {
+            bail!(
+                "Found unregistered IE key '{}' in videos list (video title: {})",
+                entry.ie_key.bright_yellow(),
+                entry.title.bright_cyan()
+            );
+        }
+    }
 
     let counter_len = entries.len().to_string().len();
 
@@ -125,7 +120,7 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
             break;
         }
 
-        let (entry, platform) = entries.get(i - 1).unwrap();
+        let entry = entries.get(i - 1).unwrap();
 
         info!(
             "| Downloading video {:>width$} / {}: {}...",
@@ -135,7 +130,7 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
             width = counter_len
         );
 
-        if let Err(err) = sync_single(entry, platform, &matchers, config) {
+        if let Err(err) = sync_single(entry, &matchers, config) {
             error_anyhow!(err);
 
             if retrying == Some(i) {
@@ -167,34 +162,13 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
 
 fn sync_single(
     entry: &CacheEntry,
-    platform: &PlatformConfig,
     platforms_matchers: &PlatformsMatchers,
     config: &Config,
 ) -> Result<()> {
-    let cookie_profile = platform
-        .cookie_profile
-        .as_ref()
-        .map(|name| {
-            existing_cookie_path(name, config)
-                .map(|path| (name, path))
-                .with_context(|| {
-                    format!(
-                        "Cookie profile '{}' was not found for platform '{}'",
-                        name.bright_yellow(),
-                        entry.ie_key.bright_cyan()
-                    )
-                })
-        })
-        .transpose()?;
-
     info!(
-        "| Video from {} at {}{}",
+        "| Video from {} at {}",
         entry.ie_key.bright_cyan(),
         entry.url.bright_green(),
-        match cookie_profile {
-            Some((name, _)) => format!(" (with cookie profile {})", name.bright_yellow()),
-            None => String::new(),
-        }
     );
 
     download(

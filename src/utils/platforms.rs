@@ -76,6 +76,7 @@ pub fn find_platform<'a, 'b>(
 
         if matchers.id_from_video_url.is_match(url) {
             return Ok(FoundPlatform {
+                platform_name: name,
                 platform_config,
                 matchers,
                 is_playlist: false,
@@ -85,6 +86,7 @@ pub fn find_platform<'a, 'b>(
         for matcher in &matchers.playlist_url_matchers {
             if matcher.is_match(url) {
                 return Ok(FoundPlatform {
+                    platform_name: name,
                     platform_config,
                     matchers,
                     is_playlist: true,
@@ -134,6 +136,7 @@ pub fn determine_video_id(
 }
 
 pub struct FoundPlatform<'a, 'b> {
+    pub platform_name: &'a str,
     pub platform_config: &'a PlatformConfig,
     pub matchers: &'b PlatformMatchingRegexes,
     pub is_playlist: bool,
