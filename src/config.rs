@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub yt_dlp_bin: PathBuf,
@@ -15,7 +15,7 @@ pub struct Config {
     pub platforms: HashMap<String, PlatformConfig>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PlatformConfig {
     pub platform_url_matcher: String,
@@ -29,4 +29,5 @@ pub struct PlatformConfig {
     pub skip_repair_date: Option<bool>,
     pub output_format: Option<String>,
     pub download_format: Option<String>,
+    pub no_thumbnail: Option<bool>,
 }

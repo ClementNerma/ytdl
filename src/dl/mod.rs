@@ -145,7 +145,7 @@ pub fn download(
         bail!("Cannot repair date in a non-temporary directory.");
     }
 
-    if !args.no_thumbnail {
+    if !args.no_thumbnail && platform_config.no_thumbnail != Some(true) {
         ytdl_args.push("--embed-thumbnail");
 
         if let Some(format) = &platform_config.output_format {
