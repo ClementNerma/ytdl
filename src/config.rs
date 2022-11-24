@@ -30,4 +30,5 @@ pub struct PlatformConfig {
     pub output_format: Option<String>,
     pub download_format: Option<String>,
     pub no_thumbnail: Option<bool>,
+    pub redirect_playlist_videos: Option<bool>,
 }

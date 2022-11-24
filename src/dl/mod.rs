@@ -47,7 +47,34 @@ pub fn download(
         info!("Detected {} videos.", colored_total);
         info!("");
 
-        for (i, video) in playlist.entries.into_iter().enumerate() {
+        let mut entries = playlist.entries;
+
+        for video in entries.iter_mut() {
+            if platform_config.redirect_playlist_videos == Some(true) {
+                let platform = find_platform(&video.url, config, platform_matchers)?;
+
+                if platform.platform_name != platform_name {
+                    let video_id = platform.matchers
+                        .id_from_video_url
+                        .captures(&video.url)
+                        .with_context(|| {
+                            format!(
+                                "Failed to extract video ID from URL ({}) using the platform's ({}) matcher",
+                                video.url.bright_magenta(),
+                                platform.platform_name.bright_cyan()
+                            )
+                        })?
+                        .name(ID_REGEX_MATCHING_GROUP_NAME)
+                        .unwrap()
+                        .as_str()
+                        .to_string();
+
+                    video.url = format!("{}{}", platform_config.videos_url_prefix, video_id);
+                }
+            }
+        }
+
+        for (i, video) in entries.into_iter().enumerate() {
             info!(
                 "> Downloading video {} / {colored_total}...",
                 (i + 1).to_string().bright_yellow()
