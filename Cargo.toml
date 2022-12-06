@@ -20,3 +20,4 @@ inquire = "0.5.2"
 time = { version = "0.3.16", features = ["formatting", "parsing", "local-offset"] }
 pomsky = "0.7.0"
 pomsky-macro = "0.7.0"
+unicode-width = "0.1.10"

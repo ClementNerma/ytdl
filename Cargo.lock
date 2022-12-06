@@ -899,5 +899,6 @@ dependencies = [
  "serde_json",
  "termsize",
  "time",
+ "unicode-width",
  "walkdir",
 ]

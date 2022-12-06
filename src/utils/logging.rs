@@ -11,8 +11,8 @@ macro_rules! _format {
         let msg = format!($message, $($params)*);
 
         let msg = match *$crate::logging::TERM_WIDTH {
-            None => msg,
-            Some(width) => msg.chars().take(width.into()).collect()
+            None => msg.as_str(),
+            Some(width) => $crate::utils::ansi_strip::ansi_strip(&msg, width.into())
         };
 
         msg.$color()
