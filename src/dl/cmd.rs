@@ -22,6 +22,12 @@ pub struct DlArgs {
     #[clap(long, help = "Custom YT-DLP filenaming")]
     pub filenaming: Option<String>,
 
+    #[clap(
+        long,
+        help = "Prefix with the video's number in playlist (e.g. '01. <rest of the filename>')"
+    )]
+    pub index_prefix: bool,
+
     #[clap(long, help = "Limit the download bandwidth")]
     pub limit_bandwidth: Option<String>,
 

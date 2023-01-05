@@ -29,6 +29,16 @@ pub fn download(
     platform_matchers: &PlatformsMatchers,
     inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
+    download_inner(args, config, platform_matchers, inspect_dl_err, None)
+}
+
+fn download_inner(
+    args: DlArgs,
+    config: &Config,
+    platform_matchers: &PlatformsMatchers,
+    inspect_dl_err: Option<ShellErrInspector>,
+    in_playlist: Option<VideoInPlaylist>,
+) -> Result<()> {
     let FoundPlatform {
         platform_name,
         platform_config,
@@ -74,7 +84,7 @@ pub fn download(
             }
         }
 
-        for (i, video) in entries.into_iter().enumerate() {
+        for (i, video) in entries.iter().enumerate() {
             info!(
                 "> Downloading video {} / {colored_total}...",
                 (i + 1).to_string().bright_yellow()
@@ -82,9 +92,9 @@ pub fn download(
 
             let cloned = args.clone();
 
-            download(
+            download_inner(
                 DlArgs {
-                    url: video.url,
+                    url: video.url.clone(),
                     cookie_profile: match &platform_config.cookie_profile {
                         Some(profile) => Some(profile.clone()),
                         None => cloned.cookie_profile.clone(),
@@ -94,6 +104,10 @@ pub fn download(
                 config,
                 platform_matchers,
                 inspect_dl_err,
+                Some(VideoInPlaylist {
+                    index: i,
+                    total: entries.len(),
+                }),
             )?;
 
             info!("");
@@ -215,8 +229,21 @@ pub fn download(
         ytdl_args.push(cookie_file);
     }
 
-    let output_with_filenaming =
-        tmp_dir.join(args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING));
+    let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);
+
+    let output_with_filenaming = tmp_dir.join(if args.index_prefix {
+        let in_playlist = in_playlist.context(
+            "Cannot add an index prefix as this video isn't part of a playlist download",
+        )?;
+
+        format!(
+            "{:0total_len$}. {filenaming}",
+            in_playlist.index + 1,
+            total_len = in_playlist.total.to_string().len()
+        )
+    } else {
+        filenaming.to_owned()
+    });
 
     ytdl_args.push("-o");
     ytdl_args.push(
@@ -333,4 +360,9 @@ pub fn download(
     success!("> Done!");
 
     Ok(())
+}
+
+struct VideoInPlaylist {
+    index: usize,
+    total: usize,
 }
