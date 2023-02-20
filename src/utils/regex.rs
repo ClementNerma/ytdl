@@ -15,9 +15,13 @@ pub fn compile_pomsky(input: &str) -> Result<Regex> {
     );
 
     let Some(compiled) = compiled else {
-        bail!("Compilation failed for regex '{input}':\n{}",
-            diag.iter().map(|diag| format!("* {}", diag.msg)).collect::<Vec<_>>().join("\n")
-        )
+        eprintln!("Warnings/errors while compiled regex '{input}':");
+
+        for diag in diag {
+            eprintln!("* {}", diag.msg);
+        }
+
+        bail!("Failed to compile regex '{input}'");
     };
 
     Ok(Regex::new(&compiled)
