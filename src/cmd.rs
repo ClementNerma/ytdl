@@ -18,6 +18,7 @@ pub struct Cmd {
 
 #[derive(Subcommand)]
 pub enum Action {
+    InitConfig,
     Dl(DlArgs),
     Sync(SyncArgs),
     Cookies(CookiesArgs),

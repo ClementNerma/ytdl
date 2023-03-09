@@ -1,21 +1,40 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    /// Shell command or filesystem path to the "yt-dlp" binary
     pub yt_dlp_bin: PathBuf,
-    pub cookies_dir: PathBuf,
+
+    /// Path the cookies directory
+    /// Relative to the configuration file's path or absolute
+    pub profiles_dir: PathBuf,
+
+    /// Path to the temporary download directory
+    /// Relative to the configuration file's path or absolute
     pub tmp_dir: PathBuf,
+
+    /// Name of the file containing the playlists URL for sync.
     pub url_filename: String,
+
+    /// Name of the file containing the cache for sync.
     pub cache_filename: String,
+
+    /// Name of the file containing the automatic blacklist for sync.
     pub auto_blacklist_filename: String,
+
+    /// Name of the file containing the custom blacklist for sync.
     pub custom_blacklist_filename: String,
-    pub default_bandwidth_limit: String,
+
+    /// Default bandwidth limit if none is provided by the platform and/or command-line arguments
+    pub default_bandwidth_limit: Option<String>,
+
+    /// List of all platforms to download from
     pub platforms: HashMap<String, PlatformConfig>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PlatformConfig {
     /// Regex matching all valid URLs for this platform
@@ -31,6 +50,20 @@ pub struct PlatformConfig {
     /// List of regexes matching playlist URLs
     pub playlist_url_matchers: Option<Vec<String>>,
 
+    /// Redirect videos inside playlists
+    /// e.g. platform "A" containing videos of platform "B"
+    /// would see B's videos redirected to A by simply changing the videos' URL
+    /// to A's video prefix + B's video ID
+    ///
+    /// Concrete use case example: Youtube Music playlists contain Youtube video entries
+    pub redirect_playlist_videos: Option<bool>,
+
+    /// Download options
+    pub dl_options: PlatformDownloadOptions,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PlatformDownloadOptions {
     /// Bandwidth limit (e.g. "20M" for 20 MB/s)
     pub bandwidth_limit: Option<String>,
 
@@ -56,12 +89,4 @@ pub struct PlatformConfig {
 
     /// Disable thumbnail downloading and embedding
     pub no_thumbnail: Option<bool>,
-
-    /// Redirect videos inside playlists
-    /// e.g. platform "A" containing videos of platform "B"
-    /// would see B's videos redirected to A by simply changing the videos' URL
-    /// to A's video prefix + B's video ID
-    ///
-    /// Concrete use case example: Youtube Music playlists contain Youtube video entries
-    pub redirect_playlist_videos: Option<bool>,
 }

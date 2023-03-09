@@ -13,5 +13,5 @@ pub fn existing_cookie_path(name: &str, config: &Config) -> Option<PathBuf> {
 }
 
 pub fn cookie_path(name: &str, config: &Config) -> PathBuf {
-    config.cookies_dir.join(name)
+    config.profiles_dir.join(name)
 }

@@ -18,7 +18,7 @@ use crate::{config::Config, cookies::access::cookie_path, info, success, warn};
 pub fn cookies(args: CookiesArgs, config: &Config) -> Result<()> {
     match args.action {
         CookiesAction::List => {
-            let profiles = fs::read_dir(&config.cookies_dir)
+            let profiles = fs::read_dir(&config.profiles_dir)
                 .context("Failed to read the cookies directory")?
                 .map(|entry| entry.map(|entry| entry.path()))
                 .collect::<Result<Vec<_>, std::io::Error>>()?;

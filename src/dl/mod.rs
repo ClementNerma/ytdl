@@ -6,11 +6,14 @@ pub use cmd::DlArgs;
 pub use constants::*;
 
 use crate::{
-    config::Config,
+    config::{Config, PlatformDownloadOptions},
     cookies::existing_cookie_path,
     dl::repair_date::{apply_mtime, repair_date},
     info,
-    platforms::{find_platform, FoundPlatform, PlatformsMatchers, ID_REGEX_MATCHING_GROUP_NAME},
+    platforms::{
+        find_platform, try_find_platform, FoundPlatform, PlatformsMatchers,
+        ID_REGEX_MATCHING_GROUP_NAME,
+    },
     shell::{run_cmd_bi_outs, ShellErrInspector},
     success,
     ytdlp::fetch_playlist,
@@ -39,108 +42,77 @@ fn download_inner(
     inspect_dl_err: Option<ShellErrInspector>,
     in_playlist: Option<VideoInPlaylist>,
 ) -> Result<()> {
-    let FoundPlatform {
-        platform_name,
-        platform_config,
-        matchers,
-        is_playlist,
-    } = find_platform(&args.url, config, platform_matchers)?;
-
-    if is_playlist {
-        info!("Fetching playlist's content...");
-
-        let playlist = fetch_playlist(&config.yt_dlp_bin, &args.url)
-            .context("Failed to fetch the playlist's content")?;
-
-        let colored_total = playlist.entries.len().to_string().bright_yellow();
-
-        info!("Detected {} videos.", colored_total);
-        info!("");
-
-        let mut entries = playlist.entries;
-
-        for video in entries.iter_mut() {
-            if platform_config.redirect_playlist_videos == Some(true) {
-                let platform = find_platform(&video.url, config, platform_matchers)?;
-
-                if platform.platform_name != platform_name {
-                    let video_id = platform.matchers
-                        .id_from_video_url
-                        .captures(&video.url)
-                        .with_context(|| {
-                            format!(
-                                "Failed to extract video ID from URL ({}) using the platform's ({}) matcher",
-                                video.url.bright_magenta(),
-                                platform.platform_name.bright_cyan()
-                            )
-                        })?
-                        .name(ID_REGEX_MATCHING_GROUP_NAME)
-                        .unwrap()
-                        .as_str()
-                        .to_string();
-
-                    video.url = format!("{}{}", platform_config.videos_url_prefix, video_id);
-                }
-            }
+    if args.no_platform {
+        if args.skip_repair_date {
+            bail!("Cannot repair date without a platform");
         }
-
-        for (i, video) in entries.iter().enumerate() {
-            info!(
-                "> Downloading video {} / {colored_total}...",
-                (i + 1).to_string().bright_yellow()
-            );
-
-            let cloned = args.clone();
-
-            download_inner(
-                DlArgs {
-                    url: video.url.clone(),
-                    cookie_profile: match &platform_config.cookie_profile {
-                        Some(profile) => Some(profile.clone()),
-                        None => cloned.cookie_profile.clone(),
-                    },
-                    ..cloned
-                },
-                config,
-                platform_matchers,
-                inspect_dl_err,
-                Some(VideoInPlaylist {
-                    index: i,
-                    total: entries.len(),
-                }),
-            )?;
-
-            info!("");
-        }
-
-        return Ok(());
     }
 
-    let video_id = matchers
-        .id_from_video_url
-        .captures(&args.url)
-        .context("Failed to extract video ID from URL using the platform's matcher")?
-        .name(ID_REGEX_MATCHING_GROUP_NAME)
-        .unwrap()
-        .as_str()
-        .to_string();
+    let platform = try_find_platform(&args.url, config, platform_matchers)?;
+
+    if let Some(platform) = &platform {
+        if platform.is_playlist {
+            return download_playlist_inner(
+                &args,
+                config,
+                platform,
+                platform_matchers,
+                inspect_dl_err,
+            );
+        }
+    }
+
+    let video_id = platform
+        .as_ref()
+        .map(|platform| -> Result<String> {
+            Ok(platform
+                .matchers
+                .id_from_video_url
+                .captures(&args.url)
+                .context("Failed to extract video ID from URL using the platform's matcher")?
+                .name(ID_REGEX_MATCHING_GROUP_NAME)
+                .unwrap()
+                .as_str()
+                .to_string())
+        })
+        .transpose()?;
+
+    let dl_options = platform
+        .as_ref()
+        .map(|p| &p.platform_config.dl_options)
+        .unwrap_or(&PlatformDownloadOptions {
+            bandwidth_limit: None,
+            needs_checking: None,
+            rate_limited: None,
+            cookie_profile: None,
+            skip_repair_date: Some(true),
+            output_format: None,
+            download_format: None,
+            no_thumbnail: None,
+        });
 
     let mut ytdl_args = vec![
         "--format",
         args.format
             .as_deref()
-            .or(platform_config.download_format.as_deref())
+            .or(dl_options.download_format.as_deref())
             .unwrap_or(DEFAULT_BEST_FORMAT),
-        "--limit-rate",
-        args.limit_bandwidth
-            .as_deref()
-            .or(platform_config.bandwidth_limit.as_deref())
-            .unwrap_or(&config.default_bandwidth_limit),
         "--add-metadata",
         "--abort-on-unavailable-fragment",
         "--compat-options",
         "abort-on-error",
     ];
+
+    let bandwidth_limit = args
+        .limit_bandwidth
+        .as_ref()
+        .or(dl_options.bandwidth_limit.as_ref())
+        .or(config.default_bandwidth_limit.as_ref());
+
+    if let Some(bandwidth_limit) = bandwidth_limit {
+        ytdl_args.push("--limit-rate");
+        ytdl_args.push(bandwidth_limit);
+    };
 
     let cwd = env::current_dir().context("Failed to get current directory")?;
 
@@ -186,10 +158,10 @@ fn download_inner(
         bail!("Cannot repair date in a non-temporary directory.");
     }
 
-    if !args.no_thumbnail && platform_config.no_thumbnail != Some(true) {
+    if !args.no_thumbnail && dl_options.no_thumbnail != Some(true) {
         ytdl_args.push("--embed-thumbnail");
 
-        if let Some(format) = &platform_config.output_format {
+        if let Some(format) = &dl_options.output_format {
             ytdl_args.push("--merge-output-format");
             ytdl_args.push(&format);
         }
@@ -198,7 +170,7 @@ fn download_inner(
     let cookie_profile = args
         .cookie_profile
         .as_ref()
-        .or(platform_config.cookie_profile.as_ref());
+        .or(dl_options.cookie_profile.as_ref());
 
     let cookie_file = cookie_profile
         .map(|profile| {
@@ -259,8 +231,11 @@ fn download_inner(
     }
 
     info!(
-        "> Downloading video from platform {}{}",
-        platform_name.bright_cyan(),
+        "> Downloading video {}{}",
+        match &platform {
+            Some(platform) => format!("from platform {}", platform.platform_name.bright_cyan()),
+            None => "without a platform".bright_yellow().to_string(),
+        },
         match cookie_profile {
             Some(name) => format!(" (with cookie profile {})", name.bright_yellow()),
             None => String::new(),
@@ -305,14 +280,14 @@ fn download_inner(
         video_file.display()
     );
 
-    let repair_dates = if !args.skip_repair_date && platform_config.skip_repair_date != Some(true) {
+    let repair_dates = if !args.skip_repair_date && dl_options.skip_repair_date != Some(true) {
         info!("> Repairing date as requested");
 
         repair_date(
             &video_file,
-            &video_id,
+            &video_id.unwrap(),
             &config.yt_dlp_bin,
-            platform_config,
+            platform.unwrap().platform_config,
             cookie_file.as_deref(),
         )?
     } else {
@@ -358,6 +333,91 @@ fn download_inner(
     })?;
 
     success!("> Done!");
+
+    Ok(())
+}
+
+fn download_playlist_inner(
+    args: &DlArgs,
+    config: &Config,
+    platform: &FoundPlatform,
+    platform_matchers: &PlatformsMatchers,
+    inspect_dl_err: Option<ShellErrInspector>,
+) -> Result<()> {
+    let FoundPlatform {
+        platform_name,
+        platform_config,
+        is_playlist,
+        matchers: _,
+    } = platform;
+
+    assert!(is_playlist);
+
+    info!("Fetching playlist's content...");
+
+    let playlist = fetch_playlist(&config.yt_dlp_bin, &args.url)
+        .context("Failed to fetch the playlist's content")?;
+
+    let colored_total = playlist.entries.len().to_string().bright_yellow();
+
+    info!("Detected {} videos.", colored_total);
+    info!("");
+
+    let mut entries = playlist.entries;
+
+    for video in entries.iter_mut() {
+        if platform_config.redirect_playlist_videos == Some(true) {
+            let platform = find_platform(&video.url, config, platform_matchers)?;
+
+            if platform.platform_name != *platform_name {
+                let video_id = platform.matchers
+                        .id_from_video_url
+                        .captures(&video.url)
+                        .with_context(|| {
+                            format!(
+                                "Failed to extract video ID from URL ({}) using the platform's ({}) matcher",
+                                video.url.bright_magenta(),
+                                platform.platform_name.bright_cyan()
+                            )
+                        })?
+                        .name(ID_REGEX_MATCHING_GROUP_NAME)
+                        .unwrap()
+                        .as_str()
+                        .to_string();
+
+                video.url = format!("{}{}", platform_config.videos_url_prefix, video_id);
+            }
+        }
+    }
+
+    for (i, video) in entries.iter().enumerate() {
+        info!(
+            "> Downloading video {} / {colored_total}...",
+            (i + 1).to_string().bright_yellow()
+        );
+
+        let cloned = args.clone();
+
+        download_inner(
+            DlArgs {
+                url: video.url.clone(),
+                cookie_profile: match &platform_config.dl_options.cookie_profile {
+                    Some(profile) => Some(profile.clone()),
+                    None => cloned.cookie_profile.clone(),
+                },
+                ..cloned
+            },
+            config,
+            platform_matchers,
+            inspect_dl_err,
+            Some(VideoInPlaylist {
+                index: i,
+                total: entries.len(),
+            }),
+        )?;
+
+        info!("");
+    }
 
     Ok(())
 }

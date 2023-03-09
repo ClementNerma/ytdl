@@ -191,7 +191,7 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
             bail!("Provided URL is a video, not a playlist!");
         }
 
-        if platform_config.rate_limited == Some(true) {
+        if platform_config.dl_options.rate_limited == Some(true) {
             parallel_fetching = false;
         }
     }
@@ -272,7 +272,7 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
                 id,
                 raw: video,
                 sync_dir: path.clone(),
-                needs_checking: platform.needs_checking == Some(true),
+                needs_checking: platform.dl_options.needs_checking == Some(true),
             });
         }
     }

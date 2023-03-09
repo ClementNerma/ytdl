@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use colored::Colorize;
 use regex::Regex;
 
@@ -33,7 +33,7 @@ pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
                             })
                         })
                         .collect::<Result<Vec<_>, _>>()?,
-                    
+
                     None => vec![]
                 },
 
@@ -69,28 +69,38 @@ pub fn find_platform<'a, 'b>(
     config: &'a Config,
     matchers: &'b PlatformsMatchers,
 ) -> Result<FoundPlatform<'a, 'b>> {
+    try_find_platform(url, config, matchers).and_then(|matcher| {
+        matcher.ok_or_else(|| anyhow!("No platform found for provided URL: {}", url.bright_cyan()))
+    })
+}
+
+pub fn try_find_platform<'a, 'b>(
+    url: &str,
+    config: &'a Config,
+    matchers: &'b PlatformsMatchers,
+) -> Result<Option<FoundPlatform<'a, 'b>>> {
     for (name, platform_config) in &config.platforms {
         let matchers = matchers
             .get(name)
             .context("Internal consistency error: failed to get platform's matcher")?;
 
         if matchers.id_from_video_url.is_match(url) {
-            return Ok(FoundPlatform {
+            return Ok(Some(FoundPlatform {
                 platform_name: name,
                 platform_config,
                 matchers,
                 is_playlist: false,
-            });
+            }));
         }
 
         for matcher in &matchers.playlist_url_matchers {
             if matcher.is_match(url) {
-                return Ok(FoundPlatform {
+                return Ok(Some(FoundPlatform {
                     platform_name: name,
                     platform_config,
                     matchers,
                     is_playlist: true,
-                });
+                }));
             }
         }
 
@@ -99,7 +109,7 @@ pub fn find_platform<'a, 'b>(
         }
     }
 
-    bail!("No platform found for provided URL: {}", url.bright_cyan());
+    Ok(None)
 }
 
 pub fn determine_video_id(

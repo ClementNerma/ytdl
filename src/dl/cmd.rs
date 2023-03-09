@@ -7,6 +7,12 @@ pub struct DlArgs {
     #[clap(help = "URL of the video/playlist/channel/... to download")]
     pub url: String,
 
+    #[clap(
+        long,
+        long_help = "Don't require a registered platform in the config file\nRemoves the ability to download playlists and per-platform configuration"
+    )]
+    pub no_platform: bool,
+
     #[clap(short, long, help = "Custom YT-DLP format")]
     pub format: Option<String>,
 
