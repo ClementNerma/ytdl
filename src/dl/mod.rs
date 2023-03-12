@@ -138,7 +138,7 @@ fn download_inner(
         output_dir.to_string_lossy().to_string()
     };
 
-    let tmp_dir = if !args.no_temp_dir {
+    let tmp_dir = if args.no_temp_dir {
         None
     } else {
         let tmp_dir = args.custom_temp_dir.as_ref().unwrap_or(&config.tmp_dir);
