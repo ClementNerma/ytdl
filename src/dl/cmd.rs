@@ -20,7 +20,14 @@ pub struct DlArgs {
         long,
         help = "Download to a custom temporary directory instead of the default one"
     )]
-    pub custom_tmp_dir: Option<PathBuf>,
+    pub custom_temp_dir: Option<PathBuf>,
+
+    #[clap(
+        long,
+        help = "Download in the current directory instead of using a temporary directory",
+        conflicts_with = "custom_temp_dir"
+    )]
+    pub no_temp_dir: bool,
 
     #[clap(long, help = "Output directory")]
     pub output_dir: Option<PathBuf>,

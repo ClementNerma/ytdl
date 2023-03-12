@@ -129,20 +129,6 @@ fn download_inner(
         );
     }
 
-    let tmp_dir = args.custom_tmp_dir.as_ref().unwrap_or(&config.tmp_dir);
-
-    if !tmp_dir.is_dir() {
-        fs::create_dir(tmp_dir).with_context(|| {
-            format!(
-                "Provided temporary directory does not exist at path: {}",
-                tmp_dir.to_string_lossy().bright_magenta()
-            )
-        })?;
-    }
-
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    let tmp_dir = tmp_dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros()));
-
     let output_dir_display = if output_dir == Path::new(".") || output_dir == cwd {
         format!(
             ". ({})",
@@ -152,9 +138,27 @@ fn download_inner(
         output_dir.to_string_lossy().to_string()
     };
 
-    let is_temp_dir_cwd = tmp_dir == cwd;
+    let tmp_dir = if !args.no_temp_dir {
+        None
+    } else {
+        let tmp_dir = args.custom_temp_dir.as_ref().unwrap_or(&config.tmp_dir);
 
-    if is_temp_dir_cwd && !args.skip_repair_date {
+        if !tmp_dir.is_dir() {
+            fs::create_dir(tmp_dir).with_context(|| {
+                format!(
+                    "Provided temporary directory does not exist at path: {}",
+                    tmp_dir.to_string_lossy().bright_magenta()
+                )
+            })?;
+        }
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+
+        Some(tmp_dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros())))
+    };
+
+    if tmp_dir.is_some() && !dl_options.skip_repair_date.unwrap_or(false) && !args.skip_repair_date
+    {
         bail!("Cannot repair date in a non-temporary directory.");
     }
 
@@ -203,7 +207,12 @@ fn download_inner(
 
     let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);
 
-    let output_with_filenaming = tmp_dir.join(if args.index_prefix {
+    let dl_dir = match &tmp_dir {
+        Some(tmp_dir) => tmp_dir.clone(),
+        None => output_dir.clone(),
+    };
+
+    let output_with_filenaming = dl_dir.join(if args.index_prefix {
         let in_playlist = in_playlist.context(
             "Cannot add an index prefix as this video isn't part of a playlist download",
         )?;
@@ -242,7 +251,7 @@ fn download_inner(
         }
     );
 
-    if !is_temp_dir_cwd {
+    if let Some(tmp_dir) = &tmp_dir {
         info!(
             "> Downloading first to temporary directory: {}",
             tmp_dir.to_string_lossy().bright_magenta()
@@ -257,12 +266,12 @@ fn download_inner(
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;
 
-    if is_temp_dir_cwd {
+    if tmp_dir.is_some() {
         return Ok(());
     }
 
     let mut files =
-        fs::read_dir(&tmp_dir).context("Failed to read the temporary download directory")?;
+        fs::read_dir(dl_dir.clone()).context("Failed to read the temporary download directory")?;
 
     let video_file = files
         .next()
@@ -325,10 +334,12 @@ fn download_inner(
         success!("> Successfully repaired dates!");
     }
 
-    fs::remove_dir(&tmp_dir).with_context(|| {
+    fs::remove_dir(&dl_dir).with_context(|| {
         format!(
             "Failed to remove temporary directory at path: {}",
-            tmp_dir.to_string_lossy().bright_magenta()
+            dl_dir
+                .to_string_lossy()
+                .bright_magenta()
         )
     })?;
 
