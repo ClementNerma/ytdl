@@ -157,7 +157,7 @@ fn download_inner(
         Some(tmp_dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros())))
     };
 
-    if tmp_dir.is_some() && !dl_options.skip_repair_date.unwrap_or(false) && !args.skip_repair_date
+    if tmp_dir.is_none() && !dl_options.skip_repair_date.unwrap_or(false) && !args.skip_repair_date
     {
         bail!("Cannot repair date in a non-temporary directory.");
     }
@@ -337,9 +337,7 @@ fn download_inner(
     fs::remove_dir(&dl_dir).with_context(|| {
         format!(
             "Failed to remove temporary directory at path: {}",
-            dl_dir
-                .to_string_lossy()
-                .bright_magenta()
+            dl_dir.to_string_lossy().bright_magenta()
         )
     })?;
 
