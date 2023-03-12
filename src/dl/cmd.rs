@@ -53,6 +53,10 @@ pub struct DlArgs {
     #[clap(long, help = "Don't download any thumbnail")]
     pub no_thumbnail: bool,
 
-    #[clap(long, help = "Additional arguments to provide to YT-DLP")]
+    #[clap(
+        long,
+        help = "Additional arguments to provide to YT-DLP",
+        allow_hyphen_values = true
+    )]
     pub forward: Vec<String>,
 }
