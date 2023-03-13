@@ -102,7 +102,7 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
     let cfg = Config {
         yt_dlp_bin: PathBuf::from("yt-dlp"),
         profiles_dir: PathBuf::from(profiles_dir_name),
-        tmp_dir: PathBuf::from("/tmp"),
+        tmp_dir: PathBuf::from("/tmp/ytdl"),
         url_filename: ".ytdlsync-url".to_string(),
         cache_filename: ".ytdlsync-cache".to_string(),
         auto_blacklist_filename: ".ytdlsync-blacklist".to_string(),
@@ -130,6 +130,11 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
         serde_json::to_string_pretty(&cfg).unwrap(),
     )
     .context("failed to write default configuration file")?;
+
+    if !cfg.tmp_dir.exists() {
+        fs::create_dir_all(&cfg.tmp_dir)
+            .context("failed to create the temporary downloads directory")?;
+    }
 
     success!("Default configuration file was successfully created!");
 
