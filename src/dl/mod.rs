@@ -266,7 +266,7 @@ fn download_inner(
     run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
         .context("Failed to run YT-DLP")?;
 
-    if tmp_dir.is_some() {
+    if tmp_dir.is_none() {
         return Ok(());
     }
 
