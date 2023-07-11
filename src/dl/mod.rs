@@ -94,7 +94,7 @@ fn download_inner(
         args.format
             .as_deref()
             .or(dl_options.download_format.as_deref())
-            .unwrap_or(DEFAULT_BEST_FORMAT),
+            .unwrap_or(DEFAULT_BEST_VIDEO_FORMAT),
         "--add-metadata",
         "--abort-on-unavailable-fragment",
         "--compat-options",

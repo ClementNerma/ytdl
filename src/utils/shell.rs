@@ -4,7 +4,7 @@ use std::{
     process::{Command, ExitStatus, Stdio},
 };
 
-use crate::dl::DEFAULT_BEST_FORMAT;
+use crate::dl::DEFAULT_BEST_VIDEO_FORMAT;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
@@ -101,7 +101,7 @@ pub fn ensure_cmd_success(cmd: &Command, status: &ExitStatus, stderr: &[u8]) -> 
         cmd.get_args()
             .map(|arg| arg.to_string_lossy())
             // Little hardcoded shortener for a very large and common argument
-            .map(|arg| if arg == DEFAULT_BEST_FORMAT {
+            .map(|arg| if arg == DEFAULT_BEST_VIDEO_FORMAT {
                 "builtin:DEFAULT_BEST_FORMAT".bright_magenta()
             } else {
                 arg.bright_yellow()
