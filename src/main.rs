@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![forbid(unused_must_use)]
 
+mod album;
 mod cmd;
 mod config;
 mod cookies;
@@ -8,6 +9,7 @@ mod dl;
 mod sync;
 mod utils;
 
+use album::download_album;
 use colored::Colorize;
 use cookies::cookies;
 use utils::platforms::build_platform_matchers;
@@ -87,6 +89,7 @@ fn inner_main() -> Result<()> {
         Action::Dl(args) => download(args, &config, &build_platform_matchers(&config)?, None),
         Action::Sync(args) => sync_dl(args, &config, &cwd),
         Action::Cookies(args) => cookies(args, &config),
+        Action::Album(args) => download_album(args, &config, &cwd),
         Action::InitConfig => Ok(()),
     }
 }

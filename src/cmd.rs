@@ -1,4 +1,4 @@
-use crate::{cookies::CookiesArgs, dl::DlArgs, sync::SyncArgs};
+use crate::{album::AlbumArgs, cookies::CookiesArgs, dl::DlArgs, sync::SyncArgs};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -22,4 +22,5 @@ pub enum Action {
     Dl(DlArgs),
     Sync(SyncArgs),
     Cookies(CookiesArgs),
+    Album(AlbumArgs),
 }
