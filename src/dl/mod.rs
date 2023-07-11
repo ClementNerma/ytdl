@@ -144,7 +144,7 @@ fn download_inner(
         if !tmp_dir.is_dir() {
             fs::create_dir(tmp_dir).with_context(|| {
                 format!(
-                    "Provided temporary directory does not exist at path: {}",
+                    "Failed to create temporary directory at path: {}",
                     tmp_dir.to_string_lossy().bright_magenta()
                 )
             })?;
