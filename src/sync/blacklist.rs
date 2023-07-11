@@ -65,7 +65,7 @@ impl BlacklistEntry {
 }
 
 pub fn load_blacklist_file(path: &Path) -> Result<Blacklist> {
-    let str = fs::read_to_string(&path).with_context(|| {
+    let str = fs::read_to_string(path).with_context(|| {
         format!(
             "Failed to read blacklist file at path '{}'",
             path.to_string_lossy().bright_magenta()

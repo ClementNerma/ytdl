@@ -114,7 +114,7 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
     let par = config_file_path.parent().unwrap();
 
     if !par.exists() {
-        fs::create_dir_all(&par)
+        fs::create_dir_all(par)
             .context("failed to create parent directories for configuration file")?;
     }
 
@@ -126,7 +126,7 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
     }
 
     fs::write(
-        &config_file_path,
+        config_file_path,
         serde_json::to_string_pretty(&cfg).unwrap(),
     )
     .context("failed to write default configuration file")?;

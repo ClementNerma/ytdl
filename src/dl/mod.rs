@@ -42,10 +42,8 @@ fn download_inner(
     inspect_dl_err: Option<ShellErrInspector>,
     in_playlist: Option<VideoInPlaylist>,
 ) -> Result<()> {
-    if args.no_platform {
-        if args.skip_repair_date {
-            bail!("Cannot repair date without a platform");
-        }
+    if args.no_platform && args.skip_repair_date {
+        bail!("Cannot repair date without a platform");
     }
 
     let platform = try_find_platform(&args.url, config, platform_matchers)?;
@@ -167,7 +165,7 @@ fn download_inner(
 
         if let Some(format) = &dl_options.output_format {
             ytdl_args.push("--merge-output-format");
-            ytdl_args.push(&format);
+            ytdl_args.push(format);
         }
     }
 
