@@ -111,20 +111,11 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
     let mut failed = 0;
 
     let mut retrying = None;
-    let mut i = 0;
 
-    loop {
-        i += 1;
-
-        if i > entries.len() {
-            break;
-        }
-
-        let entry = entries.get(i - 1).unwrap();
-
+    for (i, entry) in entries.iter().enumerate() {
         info!(
             "| Downloading video {:>width$} / {}: {}...",
-            (i/* + 1 */).to_string().bright_yellow(),
+            (i + 1).to_string().bright_yellow(),
             entries.len().to_string().bright_yellow(),
             entry.title.bright_magenta(),
             width = counter_len
