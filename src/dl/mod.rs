@@ -7,7 +7,7 @@ pub use constants::*;
 
 use crate::{
     config::{Config, PlatformDownloadOptions},
-    cookies::existing_cookie_path,
+    cookies::cookie_path,
     dl::repair_date::{apply_mtime, repair_date},
     info,
     platforms::{
@@ -176,23 +176,18 @@ fn download_inner(
 
     let cookie_file = cookie_profile
         .map(|profile| {
-            let file = existing_cookie_path(profile, config).with_context(|| {
-                format!(
+            let cookie_path = cookie_path(profile, config);
+
+            if !cookie_path.is_file() {
+                bail!(
                     "The provided cookie profile '{}' was not found",
                     profile.bright_cyan()
-                )
-            })?;
-
-            let file_path = file.to_str().context(
-                "The provided profile's cookie file's path contains invalid UTF-8 characters",
-            )?;
-
-            if !file.is_file() {
-                bail!(
-                    "Provided profile's cookie file was not found at path: {}",
-                    file_path.bright_magenta()
                 );
             }
+
+            let file_path = cookie_path.to_str().context(
+                "The provided profile's cookie file's path contains invalid UTF-8 characters",
+            )?;
 
             Ok(file_path.to_string())
         })

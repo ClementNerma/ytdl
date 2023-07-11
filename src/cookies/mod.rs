@@ -1,19 +1,22 @@
-mod access;
 mod cmd;
 
 use std::{
     fs,
     io::{self, Read},
+    path::PathBuf,
 };
 
-pub use access::existing_cookie_path;
 use anyhow::{Context, Result};
 pub use cmd::CookiesArgs;
 use colored::Colorize;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
 use self::cmd::CookiesAction;
-use crate::{config::Config, cookies::access::cookie_path, info, success, warn};
+use crate::{config::Config, info, success, warn};
+
+pub fn cookie_path(name: &str, config: &Config) -> PathBuf {
+    config.profiles_dir.join(name)
+}
 
 pub fn cookies(args: CookiesArgs, config: &Config) -> Result<()> {
     match args.action {
