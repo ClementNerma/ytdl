@@ -93,6 +93,8 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         .collect::<Result<Vec<_>, _>>()
         .context("Failed to iterate over content of the temporary download directory")?;
 
+    let mut moves = vec![];
+
     for (i, dl_file) in dl_files
         .into_iter()
         .filter(|c| c.path().extension().unwrap() != "json")
@@ -139,6 +141,12 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
         let track_file = album_dir.join(format!("{:0counter_len$}. {track}.{file_ext}", i + 1));
 
+        moves.push((dl_file, track_file));
+    }
+
+    info!("|\n| Part 4/4: Copying files to destination...\n|\n");
+
+    for (dl_file, track_file) in moves {
         info!(
             " |> {}",
             track_file
@@ -149,7 +157,6 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         );
 
         fs::copy(&dl_file, track_file).context("Failed to copy track file to destination")?;
-
         fs::remove_file(&dl_file).context("Failed to remove temporary downloaded file")?;
     }
 
