@@ -42,7 +42,7 @@ fn download_inner(
     inspect_dl_err: Option<ShellErrInspector>,
     in_playlist: Option<VideoInPlaylist>,
 ) -> Result<()> {
-    if args.no_platform && args.skip_repair_date {
+    if args.no_platform && !args.skip_repair_date {
         bail!("Cannot repair date without a platform");
     }
 
