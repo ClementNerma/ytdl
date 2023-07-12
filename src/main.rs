@@ -68,6 +68,11 @@ fn inner_main() -> Result<()> {
     let mut config: Config =
         serde_json::from_str(&config).context("Failed to decode provided configuration")?;
 
+    if !config.tmp_dir.exists() {
+        fs::create_dir_all(&config.tmp_dir)
+            .context("failed to create the temporary downloads directory")?;
+    }
+
     if !config.profiles_dir.is_absolute() {
         config.profiles_dir = config_path.parent().unwrap().join(&config.profiles_dir);
     }
@@ -133,11 +138,6 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
         serde_json::to_string_pretty(&cfg).unwrap(),
     )
     .context("failed to write default configuration file")?;
-
-    if !cfg.tmp_dir.exists() {
-        fs::create_dir_all(&cfg.tmp_dir)
-            .context("failed to create the temporary downloads directory")?;
-    }
 
     success!("Default configuration file was successfully created!");
 
