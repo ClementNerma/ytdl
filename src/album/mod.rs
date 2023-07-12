@@ -93,6 +93,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         .collect::<Result<Vec<_>, _>>()
         .context("Failed to iterate over content of the temporary download directory")?;
 
+    let mut initial_track_metadata = None;
     let mut moves = vec![];
 
     for (i, dl_file) in dl_files
@@ -129,7 +130,28 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
             album,
             uploader,
             track,
-        } = track_metadata;
+        } = &track_metadata;
+
+        match initial_track_metadata {
+            None => initial_track_metadata = Some(track_metadata.clone()),
+            Some(ref initial_mt) => {
+                if album != &initial_mt.album {
+                    bail!(
+                        "Album mismatch: expected '{}', found '{}'",
+                        initial_mt.album.bright_yellow(),
+                        album.bright_yellow()
+                    );
+                }
+
+                if uploader != &initial_mt.uploader {
+                    bail!(
+                        "Artist mismatch: expected '{}', found '{}'",
+                        initial_mt.uploader.bright_yellow(),
+                        uploader.bright_yellow()
+                    );
+                }
+            }
+        }
 
         let album_dir = cwd.join(format!("{uploader} - {album}"));
 
@@ -178,7 +200,7 @@ fn extract_json_track_metadata(json_path: &Path) -> Result<TrackMetadata> {
     Ok(metadata)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct TrackMetadata {
     album: String,
     // artist: String,
