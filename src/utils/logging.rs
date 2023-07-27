@@ -1,8 +1,6 @@
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
-lazy_static! {
-    pub static ref TERM_WIDTH: Option<u16> = termsize::get().map(|size| size.cols);
-}
+pub static TERM_WIDTH: Lazy<Option<u16>> = Lazy::new(|| termsize::get().map(|size| size.cols));
 
 #[macro_export]
 macro_rules! _format {

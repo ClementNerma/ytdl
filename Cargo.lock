@@ -1093,7 +1093,7 @@ dependencies = [
  "dirs",
  "indicatif",
  "inquire",
- "lazy_static",
+ "once_cell",
  "pomsky",
  "pomsky-macro",
  "rayon",

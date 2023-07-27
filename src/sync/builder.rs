@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use pomsky_macro::pomsky;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
@@ -29,12 +29,12 @@ use crate::{
     ytdlp::{check_availability, fetch_playlist},
 };
 
-lazy_static! {
-    pub static ref VIDEO_ID_REGEX: Regex = Regex::new(pomsky!(
+pub static VIDEO_ID_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(pomsky!(
         let ext = "mp4"|"mkv"|"webm"|"mov"|"avi"|"mp3"|"ogg"|"flac"|"alac"|"aac"|"3gp"|"wav"|"aiff"|"dsf";
         '-' :id(['a'-'z' 'A'-'Z' '0'-'9' '_' '-']+) '.' ext End
-    )).unwrap();
-}
+    )).unwrap()
+});
 
 pub fn get_cache_path(sync_dir: &Path, config: &Config) -> PathBuf {
     sync_dir.join(&config.cache_filename)

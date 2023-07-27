@@ -6,17 +6,17 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use pomsky_macro::pomsky;
 use regex::Regex;
 use std::{path::Path, process::Command};
 
-lazy_static! {
-    static ref UPLOAD_DATE_REGEX: Regex = Regex::new(pomsky!(
+static UPLOAD_DATE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(pomsky!(
         Start :year("20" [digit]{2}) :month([digit]{2}) :day([digit]{2}) End
     ))
-    .unwrap();
-}
+    .unwrap()
+});
 
 pub fn repair_date(
     file: &Path,
