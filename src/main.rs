@@ -24,11 +24,7 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use dirs::config_dir;
 use dl::download;
-use std::{
-    collections::HashMap,
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::{env, fs, path::Path};
 use sync::sync_dl;
 
 fn main() {
@@ -105,19 +101,7 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
         config_file_path.display()
     );
 
-    let profiles_dir_name = "profiles";
-
-    let cfg = Config {
-        yt_dlp_bin: PathBuf::from("yt-dlp"),
-        profiles_dir: PathBuf::from(profiles_dir_name),
-        tmp_dir: PathBuf::from("/tmp/ytdl"),
-        url_filename: ".ytdlsync-url".to_string(),
-        cache_filename: ".ytdlsync-cache".to_string(),
-        auto_blacklist_filename: ".ytdlsync-blacklist".to_string(),
-        custom_blacklist_filename: ".ytdlsync-custom-blacklist".to_string(),
-        default_bandwidth_limit: None,
-        platforms: HashMap::new(),
-    };
+    let cfg = Config::default();
 
     let par = config_file_path.parent().unwrap();
 
@@ -126,7 +110,7 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
             .context("failed to create parent directories for configuration file")?;
     }
 
-    let profiles_dir = par.join(profiles_dir_name);
+    let profiles_dir = par.join(&cfg.profiles_dir);
 
     if !profiles_dir.exists() {
         fs::create_dir_all(&profiles_dir)

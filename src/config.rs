@@ -34,6 +34,22 @@ pub struct Config {
     pub platforms: HashMap<String, PlatformConfig>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            yt_dlp_bin: PathBuf::from("yt-dlp"),
+            profiles_dir: PathBuf::from("profiles"),
+            tmp_dir: PathBuf::from("/tmp/ytdl"),
+            url_filename: ".ytdlsync-url".to_string(),
+            cache_filename: ".ytdlsync-cache".to_string(),
+            auto_blacklist_filename: ".ytdlsync-blacklist".to_string(),
+            custom_blacklist_filename: ".ytdlsync-custom-blacklist".to_string(),
+            default_bandwidth_limit: None,
+            platforms: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PlatformConfig {
