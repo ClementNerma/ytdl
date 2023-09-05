@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsStr,
     io::{self, Read, Write},
     path::Path,
     process::{Command, ExitStatus, Stdio},
@@ -6,6 +7,7 @@ use std::{
 
 use crate::dl::DEFAULT_BEST_VIDEO_FORMAT;
 use anyhow::{bail, Context, Result};
+
 use colored::Colorize;
 
 use crate::fail;
@@ -20,7 +22,7 @@ fn flush_stdout() {
         .unwrap_or_else(|e| fail!("Failed to flush STDERR: {e}"));
 }
 
-pub fn run_cmd(bin: &Path, args: &[&str]) -> Result<String> {
+pub fn run_cmd(bin: &Path, args: &[impl AsRef<OsStr>]) -> Result<String> {
     run_custom_cmd(Command::new(bin).args(args))
 }
 

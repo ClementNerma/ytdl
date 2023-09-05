@@ -6,13 +6,26 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 pub use cmd::CookiesArgs;
 use colored::Colorize;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
 use self::cmd::CookiesAction;
 use crate::{config::Config, info, success, warn};
+
+pub fn check_existing_cookie_path(profile: &str, config: &Config) -> Result<PathBuf> {
+    let cookie_path = cookie_path(profile, config);
+
+    if !cookie_path.is_file() {
+        bail!(
+            "The provided cookie profile '{}' was not found",
+            profile.bright_cyan()
+        );
+    }
+
+    Ok(cookie_path)
+}
 
 pub fn cookie_path(name: &str, config: &Config) -> PathBuf {
     config.profiles_dir.join(name)
@@ -75,7 +88,13 @@ pub fn cookies(args: CookiesArgs, config: &Config) -> Result<()> {
             ];
 
             for (i, cookie) in raw_cookies.lines().enumerate() {
+                // Ignore empty lines
                 if cookie.trim().is_empty() {
+                    continue;
+                }
+
+                // Ignore comments
+                if cookie.starts_with('#') {
                     continue;
                 }
 

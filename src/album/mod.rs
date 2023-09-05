@@ -31,7 +31,8 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
     info!("|\n| Part 1/5: Fetching playlist...\n|\n");
 
-    let RawPlaylist { entries } = fetch_playlist(&config.yt_dlp_bin, &url)?;
+    let RawPlaylist { entries } =
+        fetch_playlist(&config.yt_dlp_bin, &url, cookie_profile.as_deref(), config)?;
 
     info!(
         "|\n| Part 2/5: Downloading {} tracks...\n|\n",

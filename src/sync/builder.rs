@@ -214,8 +214,8 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
 
     let remaining = AtomicUsize::new(playlists.len());
     let playlist_fetcher = |p: PlaylistUrl| {
-        let playlist =
-            fetch_playlist(&config.yt_dlp_bin, &p.url).map(|playlist| (p.sync_dir, playlist));
+        let playlist = fetch_playlist(&config.yt_dlp_bin, &p.url, None, config)
+            .map(|playlist| (p.sync_dir, playlist));
 
         let rem = remaining.fetch_sub(1, Ordering::SeqCst) - 1;
 

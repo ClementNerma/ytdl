@@ -7,7 +7,7 @@ pub use constants::*;
 
 use crate::{
     config::{Config, PlatformDownloadOptions},
-    cookies::cookie_path,
+    cookies::check_existing_cookie_path,
     dl::repair_date::{apply_mtime, repair_date},
     info,
     platforms::{
@@ -176,20 +176,11 @@ fn download_inner(
 
     let cookie_file = cookie_profile
         .map(|profile| {
-            let cookie_path = cookie_path(profile, config);
-
-            if !cookie_path.is_file() {
-                bail!(
-                    "The provided cookie profile '{}' was not found",
-                    profile.bright_cyan()
-                );
-            }
-
-            let file_path = cookie_path.to_str().context(
-                "The provided profile's cookie file's path contains invalid UTF-8 characters",
-            )?;
-
-            Ok(file_path.to_string())
+            check_existing_cookie_path(profile, config).and_then(|path| {
+                path.to_str()
+                    .context("Cookie path contains invalid UTF-8 characters")
+                    .map(str::to_owned)
+            })
         })
         .transpose()?;
 
@@ -357,8 +348,13 @@ fn download_playlist_inner(
 
     info!("Fetching playlist's content...");
 
-    let playlist = fetch_playlist(&config.yt_dlp_bin, &args.url)
-        .context("Failed to fetch the playlist's content")?;
+    let playlist = fetch_playlist(
+        &config.yt_dlp_bin,
+        &args.url,
+        args.cookie_profile.as_deref(),
+        config,
+    )
+    .context("Failed to fetch the playlist's content")?;
 
     let colored_total = playlist.entries.len().to_string().bright_yellow();
 
