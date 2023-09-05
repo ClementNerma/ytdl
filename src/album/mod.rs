@@ -16,7 +16,7 @@ use crate::{
     config::Config,
     dl::{download, DlArgs},
     info,
-    platforms::{build_platform_matchers, PlatformsMatchers},
+    platforms::{build_platform_matchers, find_platform, FoundPlatform, PlatformsMatchers},
     success, warn,
     ytdlp::{fetch_playlist, RawPlaylist},
 };
@@ -29,10 +29,29 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
     let platform_matchers = build_platform_matchers(config)?;
 
+    let FoundPlatform {
+        platform_config,
+        is_playlist,
+        platform_name: _,
+        matchers: _,
+    } = find_platform(&url, config, &platform_matchers)?;
+
+    if !is_playlist {
+        bail!("Provided URL is a video, not a playlist!");
+    }
+
     info!("|\n| Part 1/5: Fetching playlist...\n|\n");
 
-    let RawPlaylist { entries } =
-        fetch_playlist(&config.yt_dlp_bin, &url, cookie_profile.as_deref(), config)?;
+    let RawPlaylist { entries } = fetch_playlist(
+        &config.yt_dlp_bin,
+        &url,
+        platform_config
+            .dl_options
+            .cookie_profile
+            .as_deref()
+            .or(cookie_profile.as_deref()),
+        config,
+    )?;
 
     info!(
         "|\n| Part 2/5: Downloading {} tracks...\n|\n",
