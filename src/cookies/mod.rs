@@ -143,12 +143,24 @@ fn parse_raw_cookie(cookie: &str) -> Result<String> {
     let expiration = if expiration == "Session" {
         OffsetDateTime::now_local().context("Failed to determine local date/time")?
     } else {
-        OffsetDateTime::parse(expiration, &Iso8601::DEFAULT).with_context(|| {
-            format!(
-                "Failed to parse expiration date: {}",
-                expiration.bright_yellow()
-            )
-        })?
+        OffsetDateTime::parse(expiration, &Iso8601::DEFAULT)
+            .or_else(|_| {
+                expiration
+                .parse::<i64>()
+                .context(
+                    "Failed to parse expiration date as either an ISO-8601 string or as a number",
+                )
+                .and_then(|expiration| {
+                    OffsetDateTime::from_unix_timestamp(expiration)
+                        .context("Invalid expiration date timestamp")
+                })
+            })
+            .with_context(|| {
+                format!(
+                    "Error while parsing expiration date {}",
+                    expiration.bright_yellow()
+                )
+            })?
     };
 
     let expiration = expiration.unix_timestamp();
