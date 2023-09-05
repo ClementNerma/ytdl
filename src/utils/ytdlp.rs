@@ -39,7 +39,7 @@ pub fn fetch_playlist(
     if let Some(cookie_profile) = cookie_profile {
         let cookie_path = check_existing_cookie_path(cookie_profile, config)?;
 
-        args.push("-cookies".to_owned());
+        args.push("--cookies".to_owned());
         args.push(
             cookie_path
                 .to_str()
