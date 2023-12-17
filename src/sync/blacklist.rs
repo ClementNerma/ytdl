@@ -103,7 +103,6 @@ pub fn load_optional_blacklists(paths: &[&Path]) -> Result<Blacklist> {
 pub fn blacklist_video(path: &Path, ie_key: &str, video_id: &str) -> Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
-        .write(true)
         .append(true)
         .open(path)
         .context("Failed to create or open blacklist file")?;

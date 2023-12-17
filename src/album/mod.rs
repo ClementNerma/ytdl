@@ -219,7 +219,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
     )?;
 
     let album_infos =
-        fs::read_to_string(&album_json_file).context("Failed to read album informations file")?;
+        fs::read_to_string(album_json_file).context("Failed to read album informations file")?;
 
     let AlbumMetadata { thumbnails } = serde_json::from_str::<AlbumMetadata>(&album_infos)
         .context("Failed to parse album metadata")?;
