@@ -39,7 +39,11 @@ impl Default for Config {
         Self {
             yt_dlp_bin: PathBuf::from("yt-dlp"),
             profiles_dir: PathBuf::from("profiles"),
-            tmp_dir: PathBuf::from("/tmp/ytdl"),
+            tmp_dir: if cfg!(target_family = "windows") {
+                PathBuf::from("C:\\Users\\cleme\\AppData\\Local\\Temp")
+            } else {
+                PathBuf::from("/tmp/ytdl")
+            },
             url_filename: ".ytdlsync-url".to_string(),
             cache_filename: ".ytdlsync-cache".to_string(),
             auto_blacklist_filename: ".ytdlsync-blacklist".to_string(),
