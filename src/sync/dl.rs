@@ -110,8 +110,6 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
 
     let mut failed = 0;
 
-    let mut retrying = None;
-
     for (i, entry) in entries.iter().enumerate() {
         info!(
             "| Downloading video {:>width$} / {}: {}...",
@@ -121,22 +119,21 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
             width = counter_len
         );
 
-        if let Err(err) = sync_single(entry, &matchers, config) {
-            error_anyhow!(err);
+        let one_try =
+            || sync_single(entry, &matchers, config).inspect_err(|err| error_anyhow!(err));
 
-            if retrying == Some(i) {
+        if one_try().is_err() {
+            warn!("\nFailed on this video, waiting 5 seconds before retrying...");
+
+            std::thread::sleep(Duration::from_secs(5));
+
+            warn!("\nRetrying...\n");
+
+            if one_try().is_err() {
                 error!("Failed twice on this item, skipping it.");
                 failed += 1;
                 continue;
             }
-
-            warn!("");
-            warn!("Failed on this video, waiting 5 seconds before retrying...");
-            retrying = Some(i);
-
-            std::thread::sleep(Duration::from_secs(5));
-
-            continue;
         }
 
         info!("");
