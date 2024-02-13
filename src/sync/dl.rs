@@ -127,10 +127,10 @@ pub fn sync_dl(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
 
             std::thread::sleep(Duration::from_secs(5));
 
-            warn!("\nRetrying...\n");
+            warn!("\n> Retrying...\n");
 
             if one_try().is_err() {
-                error!("Failed twice on this item, skipping it.");
+                error!("\\!/ Failed twice on this item, skipping it. \\!/\n");
                 failed += 1;
                 continue;
             }
