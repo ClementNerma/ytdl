@@ -1,6 +1,8 @@
 use once_cell::sync::Lazy;
+use terminal_size::{terminal_size, Width};
 
-pub static TERM_WIDTH: Lazy<Option<u16>> = Lazy::new(|| termsize::get().map(|size| size.cols));
+pub static TERM_WIDTH: Lazy<Option<u16>> =
+    Lazy::new(|| terminal_size().map(|(Width(cols), _)| cols));
 
 #[macro_export]
 macro_rules! _format {
