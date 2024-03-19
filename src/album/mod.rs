@@ -1,7 +1,6 @@
 mod cmd;
 
 use std::{
-    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
@@ -10,13 +9,14 @@ use std::{
 use anyhow::{bail, Context, Result};
 pub use cmd::AlbumArgs;
 use colored::Colorize;
+use reqwest::{header, Url};
 use serde::Deserialize;
 
 use crate::{
     config::Config,
     dl::{download, DlArgs},
     info,
-    platforms::{build_platform_matchers, find_platform, FoundPlatform, PlatformsMatchers},
+    platforms::{build_platform_matchers, find_platform, FoundPlatform},
     success, warn,
     ytdlp::{fetch_playlist, RawPlaylist},
 };
@@ -115,7 +115,6 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
     let mut initial_track_metadata = None;
     let mut moves = vec![];
-    let mut treated_json_files = HashSet::new();
 
     for (i, dl_file) in dl_files
         .iter()
@@ -147,12 +146,11 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                 )
             })?;
 
-        treated_json_files.insert(json_path);
-
         let TrackMetadata {
             album,
             uploader,
             track,
+            thumbnails: _,
         } = &track_metadata;
 
         let album_dir = match initial_track_metadata {
@@ -167,6 +165,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
                 album_dir
             }
+
             Some((ref initial_mt, ref album_dir)) => {
                 if album != &initial_mt.album {
                     bail!(
@@ -195,39 +194,27 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         moves.push((dl_file, track_file));
     }
 
-    if initial_track_metadata.is_none() {
-        bail!("No track found in playlist");
-    }
+    let (initial_track_metadata, album_dir) =
+        initial_track_metadata.context("No track found in the provided playlist!")?;
 
     info!("");
     info!("|\n| Part 4/5: Downloading album thumbnail...\n|\n");
 
-    info!("| Downloading playlist metadata...");
+    info!("| Reading playlist metadata...");
 
-    let album_json_file = download_single_file(
-        &tmp_dir,
-        &url,
-        cookies_from_browser.clone(),
-        config,
-        &platform_matchers,
-        vec![
-            "--flat-playlist".to_string(),
-            "--write-info-json".to_string(),
-            "--skip-download".to_string(),
-        ],
-    )?;
+    let thumbnail = initial_track_metadata
+        .thumbnails
+        .into_iter()
+        .filter_map(|thumb| {
+            let TrackThumbnail { url, height, width } = thumb;
 
-    let album_infos =
-        fs::read_to_string(album_json_file).context("Failed to read album informations file")?;
-
-    let AlbumMetadata { thumbnails } = serde_json::from_str::<AlbumMetadata>(&album_infos)
-        .context("Failed to parse album metadata")?;
-
-    let thumbnail = thumbnails
-        .iter()
+            width
+                .zip(height)
+                .map(|(width, height)| ValidThumbnail { url, height, width })
+        })
         .filter(|thumb| {
             // HACK: Fix for Youtube returning non-existing URLs
-            !(thumb.url.contains(".ytimg.com") && thumb.width > 1000 && thumb.height > 1000)
+            thumb.url.contains(".googleusercontent.com")
         })
         .max_by_key(|thumb| {
             // Converting to higher-capacity number to avoid overflows
@@ -236,32 +223,19 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
     match thumbnail {
         None => warn!("Warning: album has no thumbnail!"),
-        Some(AlbumThumbnail {
+        Some(ValidThumbnail {
             url,
             height: _,
             width: _,
         }) => {
             info!("| Downloading thumbnail at: {}", url.bright_magenta());
 
-            let thumbnail_file = download_single_file(
-                &tmp_dir,
-                url,
-                cookies_from_browser,
-                config,
-                &platform_matchers,
-                vec![],
-            )?;
+            let (thumbnail_path, thumbnail_ext) = download_thumbnail(&url, &tmp_dir)?;
 
-            moves.insert(
-                0,
-                (
-                    thumbnail_file.clone(),
-                    initial_track_metadata.unwrap().1.join(format!(
-                        "cover.{}",
-                        thumbnail_file.extension().unwrap().to_str().unwrap()
-                    )),
-                ),
-            );
+            moves.push((
+                thumbnail_path.clone(),
+                album_dir.join(format!("cover{}", thumbnail_ext.unwrap_or_default())),
+            ));
         }
     }
 
@@ -288,45 +262,6 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
     Ok(())
 }
 
-fn download_single_file(
-    tmp_dir: &Path,
-    url: &str,
-    cookies_from_browser: Option<String>,
-    config: &Config,
-    platform_matchers: &PlatformsMatchers,
-    forward: Vec<String>,
-) -> Result<PathBuf> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    let tmp_dir = tmp_dir.join(format!("{}-{}-single", now.as_secs(), now.subsec_micros()));
-
-    fs::create_dir(&tmp_dir).context("Failed to create a temporary download directory")?;
-
-    download(
-        DlArgs {
-            url: url.to_string(),
-            no_temp_dir: true,
-            output_dir: Some(tmp_dir.clone()),
-            skip_repair_date: true,
-            no_platform: true,
-            cookies_from_browser,
-            forward,
-            ..Default::default()
-        },
-        config,
-        platform_matchers,
-        None,
-    )?;
-
-    let dl_files = fs::read_dir(&tmp_dir)
-        .context("Failed to read temporary download directory")?
-        .collect::<Result<Vec<_>, _>>()
-        .context("Failed to iterate over content of the temporary download directory")?;
-
-    assert_eq!(dl_files.len(), 1, "Expected exactly one file");
-
-    Ok(dl_files[0].path())
-}
-
 fn extract_json_track_metadata(json_path: &Path) -> Result<TrackMetadata> {
     if !json_path.exists() {
         bail!("JSON information file was not found");
@@ -340,6 +275,47 @@ fn extract_json_track_metadata(json_path: &Path) -> Result<TrackMetadata> {
     Ok(metadata)
 }
 
+fn download_thumbnail(url: &str, to_dir: &Path) -> Result<(PathBuf, Option<String>)> {
+    let url = Url::parse(url).context("Failed to parse thumbnail URL")?;
+
+    let res = reqwest::blocking::get(url.clone()).context("Failed to fetch thumbnail")?;
+
+    let res = res
+        .error_for_status()
+        .context("Failed to fetch thumbnail")?;
+
+    let mime_type = res
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|header| std::str::from_utf8(header.as_bytes()).ok())
+        .map(str::to_owned);
+
+    let res = res.bytes().context("Failed to get thumbnail's body")?;
+
+    let maybe_ext = mime_type
+        .and_then(|mime_type| mime_guess::get_mime_extensions_str(&mime_type)?.first())
+        .map(|ext| (*ext).to_owned())
+        .or_else(|| {
+            url.path()
+                .split('.')
+                .last()
+                .map(str::to_lowercase)
+                .filter(|ext| ext == "png" || ext == "jpg" || ext == "jpeg")
+        })
+        .map(|ext| format!(".{ext}"));
+
+    println!("{maybe_ext:?}");
+
+    let path = to_dir.join(format!(
+        "thumbnail{}",
+        maybe_ext.clone().unwrap_or_default()
+    ));
+
+    fs::write(&path, res).context("Failed to write thumbnail to disk")?;
+
+    Ok((path, maybe_ext))
+}
+
 #[derive(Deserialize, Clone)]
 struct TrackMetadata {
     album: String,
@@ -347,15 +323,18 @@ struct TrackMetadata {
     uploader: String,
     track: String,
     // release_year: u16,
+    thumbnails: Vec<TrackThumbnail>,
 }
 
-#[derive(Deserialize)]
-struct AlbumMetadata {
-    thumbnails: Vec<AlbumThumbnail>,
+#[derive(Deserialize, Clone)]
+struct TrackThumbnail {
+    url: String,
+    height: Option<u16>,
+    width: Option<u16>,
 }
 
-#[derive(Deserialize)]
-struct AlbumThumbnail {
+#[derive(Clone)]
+struct ValidThumbnail {
     url: String,
     height: u16,
     width: u16,
