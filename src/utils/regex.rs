@@ -6,7 +6,7 @@ use pomsky::{
 use regex::Regex;
 
 pub fn compile_pomsky(input: &str) -> Result<Regex> {
-    let (compiled, diag) = Expr::parse_and_compile(
+    let (compiled, diag, _) = Expr::parse_and_compile(
         &format!("{POMSKY_HEADER}{input}"),
         CompileOptions {
             flavor: RegexFlavor::Rust,
