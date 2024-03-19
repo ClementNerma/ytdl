@@ -7,10 +7,6 @@ pub struct Config {
     /// Shell command or filesystem path to the "yt-dlp" binary
     pub yt_dlp_bin: PathBuf,
 
-    /// Path the cookies directory
-    /// Relative to the configuration file's path or absolute
-    pub profiles_dir: PathBuf,
-
     /// Path to the temporary download directory
     /// Relative to the configuration file's path or absolute
     pub tmp_dir: PathBuf,
@@ -38,7 +34,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             yt_dlp_bin: PathBuf::from("yt-dlp"),
-            profiles_dir: PathBuf::from("profiles"),
             tmp_dir: if cfg!(target_family = "windows") {
                 PathBuf::from("C:\\Users\\cleme\\AppData\\Local\\Temp")
             } else {
@@ -95,7 +90,7 @@ pub struct PlatformDownloadOptions {
     /// (Only used for synchronization)
     pub rate_limited: Option<bool>,
 
-    /// Use cookie profile from the provided browser
+    /// Use cookies from the provided browser
     pub cookies_from_browser: Option<String>,
 
     /// Disable repairing the video's date

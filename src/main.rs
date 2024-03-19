@@ -59,23 +59,12 @@ fn inner_main() -> Result<()> {
 
     let config = fs::read_to_string(&config_path).context("Failed to read config file")?;
 
-    let mut config: Config =
-        serde_json::from_str(&config).context("Failed to decode provided configuration")?;
+    let config = serde_json::from_str::<Config>(&config)
+        .context("Failed to decode provided configuration")?;
 
     if !config.tmp_dir.exists() {
         fs::create_dir_all(&config.tmp_dir)
             .context("failed to create the temporary downloads directory")?;
-    }
-
-    if !config.profiles_dir.is_absolute() {
-        config.profiles_dir = config_path.parent().unwrap().join(&config.profiles_dir);
-    }
-
-    if !config.profiles_dir.is_dir() {
-        bail!(
-            "Cookies directory was not found at: {}",
-            config.profiles_dir.display()
-        );
     }
 
     if let Err(e) = check_version(&config.yt_dlp_bin) {
@@ -100,18 +89,11 @@ fn create_config_file(config_file_path: &Path) -> Result<()> {
 
     let cfg = Config::default();
 
-    let par = config_file_path.parent().unwrap();
+    let parent = config_file_path.parent().unwrap();
 
-    if !par.exists() {
-        fs::create_dir_all(par)
+    if !parent.exists() {
+        fs::create_dir_all(parent)
             .context("failed to create parent directories for configuration file")?;
-    }
-
-    let profiles_dir = par.join(&cfg.profiles_dir);
-
-    if !profiles_dir.exists() {
-        fs::create_dir_all(&profiles_dir)
-            .context("failed to create the profiles directories for configuration file")?;
     }
 
     fs::write(

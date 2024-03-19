@@ -219,7 +219,7 @@ fn download_inner(
             None => "without a platform".bright_yellow().to_string(),
         },
         match cookies_from_browser {
-            Some(name) => format!(" (with cookie profile {})", name.bright_yellow()),
+            Some(name) => format!(" (with cookies from browser {})", name.bright_yellow()),
             None => String::new(),
         }
     );
