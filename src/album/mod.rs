@@ -176,7 +176,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                 }
 
                 if uploader != &initial_mt.uploader {
-                    bail!(
+                    warn!(
                         "Artist mismatch: expected '{}', found '{}'",
                         initial_mt.uploader.bright_yellow(),
                         uploader.bright_yellow()
