@@ -44,8 +44,8 @@ pub struct DlArgs {
     #[clap(long, help = "Limit the download bandwidth")]
     pub limit_bandwidth: Option<String>,
 
-    #[clap(long, help = "Use a registered cookie profile")]
-    pub cookie_profile: Option<String>,
+    #[clap(long, help = "Use cookies from the provided browser")]
+    pub cookies_from_browser: Option<String>,
 
     #[clap(long, help = "Repair every videos' date after download")]
     pub skip_repair_date: bool,

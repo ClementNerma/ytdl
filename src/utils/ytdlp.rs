@@ -4,8 +4,6 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-use crate::{config::Config, cookies::check_existing_cookie_path};
-
 use super::shell::run_cmd;
 
 #[derive(Deserialize)]
@@ -27,8 +25,7 @@ pub fn check_version(bin: &Path) -> Result<String> {
 pub fn fetch_playlist(
     bin: &Path,
     url: &str,
-    cookie_profile: Option<&str>,
-    config: &Config,
+    cookies_from_browser: Option<&str>,
 ) -> Result<RawPlaylist> {
     let mut args = vec![
         "-J".to_owned(),
@@ -36,16 +33,9 @@ pub fn fetch_playlist(
         url.to_owned(),
     ];
 
-    if let Some(cookie_profile) = cookie_profile {
-        let cookie_path = check_existing_cookie_path(cookie_profile, config)?;
-
-        args.push("--cookies".to_owned());
-        args.push(
-            cookie_path
-                .to_str()
-                .context("Cookie path contains invalid UTF-8 characters")?
-                .to_owned(),
-        )
+    if let Some(cookies_from_browser) = cookies_from_browser {
+        args.push("--cookies-from-browser".to_owned());
+        args.push(cookies_from_browser.to_owned())
     }
 
     let output = run_cmd(bin, &args)?;

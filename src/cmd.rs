@@ -1,4 +1,4 @@
-use crate::{album::AlbumArgs, cookies::CookiesArgs, dl::DlArgs, sync::SyncArgs};
+use crate::{album::AlbumArgs, dl::DlArgs, sync::SyncArgs};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -6,6 +6,7 @@ use std::path::PathBuf;
 #[clap(author, version, about, long_about = None)]
 pub struct Cmd {
     #[clap(
+        global = true,
         short = 'c',
         long = "config-file",
         help = "Path to the configuration file"
@@ -21,6 +22,5 @@ pub enum Action {
     InitConfig,
     Dl(DlArgs),
     Sync(SyncArgs),
-    Cookies(CookiesArgs),
     Album(AlbumArgs),
 }

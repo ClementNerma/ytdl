@@ -95,8 +95,8 @@ pub struct PlatformDownloadOptions {
     /// (Only used for synchronization)
     pub rate_limited: Option<bool>,
 
-    /// Cookie profile to use
-    pub cookie_profile: Option<String>,
+    /// Use cookie profile from the provided browser
+    pub cookies_from_browser: Option<String>,
 
     /// Disable repairing the video's date
     pub skip_repair_date: Option<bool>,

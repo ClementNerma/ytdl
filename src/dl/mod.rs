@@ -7,7 +7,6 @@ pub use constants::*;
 
 use crate::{
     config::{Config, PlatformDownloadOptions},
-    cookies::check_existing_cookie_path,
     dl::repair_date::{apply_mtime, repair_date},
     info,
     platforms::{
@@ -82,7 +81,7 @@ fn download_inner(
             bandwidth_limit: None,
             needs_checking: None,
             rate_limited: None,
-            cookie_profile: None,
+            cookies_from_browser: None,
             skip_repair_date: Some(true),
             output_format: None,
             download_format: None,
@@ -169,24 +168,14 @@ fn download_inner(
         }
     }
 
-    let cookie_profile = args
-        .cookie_profile
+    let cookies_from_browser = args
+        .cookies_from_browser
         .as_ref()
-        .or(dl_options.cookie_profile.as_ref());
+        .or(dl_options.cookies_from_browser.as_ref());
 
-    let cookie_file = cookie_profile
-        .map(|profile| {
-            check_existing_cookie_path(profile, config).and_then(|path| {
-                path.to_str()
-                    .context("Cookie path contains invalid UTF-8 characters")
-                    .map(str::to_owned)
-            })
-        })
-        .transpose()?;
-
-    if let Some(ref cookie_file) = cookie_file {
-        ytdl_args.push("--cookies");
-        ytdl_args.push(cookie_file);
+    if let Some(cookies_from_browser) = cookies_from_browser {
+        ytdl_args.push("--cookies-from-browser");
+        ytdl_args.push(cookies_from_browser);
     }
 
     let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);
@@ -229,7 +218,7 @@ fn download_inner(
             Some(platform) => format!("from platform {}", platform.platform_name.bright_cyan()),
             None => "without a platform".bright_yellow().to_string(),
         },
-        match cookie_profile {
+        match cookies_from_browser {
             Some(name) => format!(" (with cookie profile {})", name.bright_yellow()),
             None => String::new(),
         }
@@ -281,7 +270,7 @@ fn download_inner(
             &video_id.unwrap(),
             &config.yt_dlp_bin,
             platform.unwrap().platform_config,
-            cookie_file.as_deref(),
+            cookies_from_browser.map(String::as_str),
         )?
     } else {
         None
@@ -351,8 +340,7 @@ fn download_playlist_inner(
     let playlist = fetch_playlist(
         &config.yt_dlp_bin,
         &args.url,
-        args.cookie_profile.as_deref(),
-        config,
+        args.cookies_from_browser.as_deref(),
     )
     .context("Failed to fetch the playlist's content")?;
 
@@ -399,10 +387,11 @@ fn download_playlist_inner(
         download_inner(
             DlArgs {
                 url: video.url.clone(),
-                cookie_profile: match &platform_config.dl_options.cookie_profile {
-                    Some(profile) => Some(profile.clone()),
-                    None => cloned.cookie_profile.clone(),
-                },
+                cookies_from_browser: platform_config
+                    .dl_options
+                    .cookies_from_browser
+                    .clone()
+                    .or(cloned.cookies_from_browser),
                 ..cloned
             },
             config,

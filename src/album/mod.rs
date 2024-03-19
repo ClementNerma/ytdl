@@ -24,7 +24,7 @@ use crate::{
 pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()> {
     let AlbumArgs {
         url,
-        cookie_profile,
+        cookies_from_browser,
     } = args;
 
     let platform_matchers = build_platform_matchers(config)?;
@@ -47,10 +47,9 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         &url,
         platform_config
             .dl_options
-            .cookie_profile
+            .cookies_from_browser
             .as_deref()
-            .or(cookie_profile.as_deref()),
-        config,
+            .or(cookies_from_browser.as_deref()),
     )?;
 
     info!(
@@ -96,7 +95,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                 forward: vec!["--write-info-json".to_string()],
                 no_thumbnail: true,
                 skip_repair_date: true,
-                cookie_profile: cookie_profile.clone(),
+                cookies_from_browser: cookies_from_browser.clone(),
                 ..Default::default()
             },
             config,
@@ -208,7 +207,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
     let album_json_file = download_single_file(
         &tmp_dir,
         &url,
-        cookie_profile.clone(),
+        cookies_from_browser.clone(),
         config,
         &platform_matchers,
         vec![
@@ -247,7 +246,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
             let thumbnail_file = download_single_file(
                 &tmp_dir,
                 url,
-                cookie_profile,
+                cookies_from_browser,
                 config,
                 &platform_matchers,
                 vec![],
@@ -292,7 +291,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 fn download_single_file(
     tmp_dir: &Path,
     url: &str,
-    cookie_profile: Option<String>,
+    cookies_from_browser: Option<String>,
     config: &Config,
     platform_matchers: &PlatformsMatchers,
     forward: Vec<String>,
@@ -309,7 +308,7 @@ fn download_single_file(
             output_dir: Some(tmp_dir.clone()),
             skip_repair_date: true,
             no_platform: true,
-            cookie_profile,
+            cookies_from_browser,
             forward,
             ..Default::default()
         },
