@@ -96,6 +96,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                 no_thumbnail: true,
                 skip_repair_date: true,
                 cookies_from_browser: cookies_from_browser.clone(),
+                filenaming: Some(format!("{:0counter_len$}. %(title)s.%(ext)s", i + 1)),
                 ..Default::default()
             },
             config,
@@ -108,10 +109,15 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
     info!("|\n| Part 3/5: Analyzing tracks metadata...\n|\n");
 
-    let dl_files = fs::read_dir(&tmp_dir)
+    let mut dl_files = fs::read_dir(&tmp_dir)
         .context("Failed to read temporary download directory")?
         .collect::<Result<Vec<_>, _>>()
         .context("Failed to iterate over content of the temporary download directory")?;
+
+    dl_files.sort_by_key(|entry| entry.path());
+
+    // Seal the list
+    let dl_files = dl_files;
 
     let mut initial_track_metadata = None;
     let mut moves = vec![];
