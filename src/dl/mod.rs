@@ -8,14 +8,15 @@ pub use constants::*;
 use crate::{
     config::{Config, PlatformDownloadOptions},
     dl::repair_date::{apply_mtime, repair_date},
-    info,
-    platforms::{
-        find_platform, try_find_platform, FoundPlatform, PlatformsMatchers,
-        ID_REGEX_MATCHING_GROUP_NAME,
+    info, success,
+    utils::{
+        platforms::{
+            find_platform, try_find_platform, FoundPlatform, PlatformsMatchers,
+            ID_REGEX_MATCHING_GROUP_NAME,
+        },
+        shell::{run_cmd_bi_outs, ShellErrInspector},
+        ytdlp::fetch_playlist,
     },
-    shell::{run_cmd_bi_outs, ShellErrInspector},
-    success,
-    ytdlp::fetch_playlist,
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;

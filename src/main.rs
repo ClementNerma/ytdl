@@ -8,22 +8,21 @@ mod dl;
 mod sync;
 mod utils;
 
-use album::download_album;
-use colored::Colorize;
-use utils::platforms::build_platform_matchers;
-pub use utils::*;
+use std::{env, fs, path::Path};
 
-use self::{
-    cmd::{Action, Cmd},
-    config::Config,
-    utils::ytdlp::check_version,
-};
 use anyhow::{bail, Context, Result};
 use clap::Parser;
+use colored::Colorize;
 use dirs::config_dir;
-use dl::download;
-use std::{env, fs, path::Path};
-use sync::sync_dl;
+
+use self::{
+    album::download_album,
+    cmd::{Action, Cmd},
+    config::Config,
+    dl::download,
+    sync::sync,
+    utils::{platforms::build_platform_matchers, ytdlp::check_version},
+};
 
 fn main() {
     if let Err(err) = inner_main() {
@@ -75,7 +74,7 @@ fn inner_main() -> Result<()> {
 
     match args.action {
         Action::Dl(args) => download(args, &config, &build_platform_matchers(&config)?, None),
-        Action::Sync(args) => sync_dl(args, &config, &cwd),
+        Action::Sync(args) => sync(args, &config, &cwd),
         Action::Album(args) => download_album(args, &config, &cwd),
         Action::InitConfig => Ok(()),
     }

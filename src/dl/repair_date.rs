@@ -1,8 +1,8 @@
 use crate::{
     config::PlatformConfig,
-    error, info_inline,
-    shell::{run_cmd, run_custom_cmd},
-    success, warn,
+    error, info_inline, success,
+    utils::shell::{run_cmd, run_custom_cmd},
+    warn,
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;

@@ -1,11 +1,9 @@
+mod actions;
 mod blacklist;
 mod builder;
 mod cache;
 mod cmd;
 mod display;
-mod dl;
 
-pub use builder::{build_or_update_cache, get_cache_path};
+pub use actions::sync;
 pub use cmd::SyncArgs;
-pub use display::display_sync;
-pub use dl::sync_dl;

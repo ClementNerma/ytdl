@@ -10,7 +10,7 @@ macro_rules! _format {
         use colored::Colorize;
         let msg = format!($message, $($params)*);
 
-        let msg = match *$crate::logging::TERM_WIDTH {
+        let msg = match *$crate::utils::logging::TERM_WIDTH {
             None => msg.as_str(),
             Some(width) => $crate::utils::ansi_strip::ansi_strip(&msg, width.into())
         };

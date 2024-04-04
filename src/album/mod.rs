@@ -15,10 +15,12 @@ use serde::Deserialize;
 use crate::{
     config::Config,
     dl::{download, DlArgs},
-    info,
-    platforms::{build_platform_matchers, find_platform, FoundPlatform},
-    success, warn,
-    ytdlp::{fetch_playlist, RawPlaylist},
+    info, success,
+    utils::{
+        platforms::{build_platform_matchers, find_platform, FoundPlatform},
+        ytdlp::{fetch_playlist, RawPlaylist},
+    },
+    warn,
 };
 
 pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()> {

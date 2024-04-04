@@ -47,6 +47,10 @@ pub struct BlacklistEntry {
 }
 
 impl BlacklistEntry {
+    pub fn new(ie_key: String, video_id: String) -> Self {
+        Self { ie_key, video_id }
+    }
+
     pub fn decode(line: &str) -> Result<Self> {
         let mut segments = line.split('/');
 
@@ -61,6 +65,15 @@ impl BlacklistEntry {
                 video_id: id,
             })
         }
+    }
+
+    fn encode(&self) -> String {
+        let Self { ie_key, video_id } = self;
+        format!("{ie_key}/{video_id}")
+    }
+
+    pub fn ie_key(&self) -> &str {
+        &self.ie_key
     }
 }
 
@@ -100,14 +113,12 @@ pub fn load_optional_blacklists(paths: &[&Path]) -> Result<Blacklist> {
     ))
 }
 
-pub fn blacklist_video(path: &Path, ie_key: &str, video_id: &str) -> Result<()> {
+pub fn blacklist_video(path: &Path, entry: &BlacklistEntry) -> Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
         .context("Failed to create or open blacklist file")?;
 
-    let line = format!("{}/{}", ie_key, video_id);
-
-    writeln!(file, "{line}").context("Failed to update blacklist file")
+    writeln!(file, "{}", entry.encode()).context("Failed to update blacklist file")
 }

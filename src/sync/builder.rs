@@ -18,15 +18,19 @@ use super::{
     blacklist::{blacklist_video, load_optional_blacklists, Blacklist},
     cache::{Cache, CacheEntry, PlatformVideo},
 };
+
 use crate::{
     config::Config,
-    error, info, info_inline,
-    platforms::{
-        build_platform_matchers, determine_video_id, find_platform, FoundPlatform,
-        ID_REGEX_MATCHING_GROUP_NAME,
+    error, info, info_inline, success,
+    sync::blacklist::BlacklistEntry,
+    utils::{
+        platforms::{
+            build_platform_matchers, determine_video_id, find_platform, FoundPlatform,
+            ID_REGEX_MATCHING_GROUP_NAME,
+        },
+        ytdlp::{check_availability, fetch_playlist},
     },
-    success, warn,
-    ytdlp::{check_availability, fetch_playlist},
+    warn,
 };
 
 pub static VIDEO_ID_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -395,8 +399,7 @@ fn check_videos_availability(
                 &sync_dir
                     .join(&video.sync_dir)
                     .join(&config.auto_blacklist_filename),
-                &video.raw.ie_key,
-                &video.id,
+                &BlacklistEntry::new(video.raw.ie_key.clone(), video.id.clone()),
             )?;
         }
     }

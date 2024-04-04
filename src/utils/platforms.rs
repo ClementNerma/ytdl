@@ -6,8 +6,7 @@ use regex::Regex;
 
 use crate::{
     config::{Config, PlatformConfig},
-    regex::compile_pomsky,
-    ytdlp::RawVideoInfos,
+    utils::{regex::compile_pomsky, ytdlp::RawVideoInfos},
 };
 
 pub type PlatformsMatchers<'a> = HashMap<&'a String, PlatformMatchingRegexes>;
