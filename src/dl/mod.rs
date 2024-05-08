@@ -8,38 +8,37 @@ pub use constants::*;
 use crate::{
     config::{Config, PlatformDownloadOptions},
     dl::repair_date::{apply_mtime, repair_date},
-    info, success,
+    error, error_anyhow, info, info_inline, success,
     utils::{
         platforms::{
             find_platform, try_find_platform, FoundPlatform, PlatformsMatchers,
             ID_REGEX_MATCHING_GROUP_NAME,
         },
-        shell::{run_cmd_bi_outs, ShellErrInspector},
+        shell::run_cmd_bi_outs,
         ytdlp::fetch_playlist,
     },
+    warn,
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::{
     env, fs,
     path::Path,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 pub fn download(
     args: DlArgs,
     config: &Config,
     platform_matchers: &PlatformsMatchers,
-    inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
-    download_inner(args, config, platform_matchers, inspect_dl_err)
+    download_inner(args, config, platform_matchers)
 }
 
 fn download_inner(
     args: DlArgs,
     config: &Config,
     platform_matchers: &PlatformsMatchers,
-    inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
     if args.no_platform && !args.skip_repair_date {
         bail!("Cannot repair date without a platform");
@@ -56,14 +55,7 @@ fn download_inner(
                     bail!("Cannot mix playlist and non-playlist downloads");
                 }
 
-                return download_playlist_inner(
-                    url,
-                    &args,
-                    config,
-                    platform,
-                    platform_matchers,
-                    inspect_dl_err,
-                );
+                return download_playlist_inner(url, &args, config, platform, platform_matchers);
             }
         }
 
@@ -71,6 +63,8 @@ fn download_inner(
     }
 
     let colored_total = videos.len().to_string().bright_yellow();
+
+    let mut failed = 0;
 
     for (i, (url, platform)) in videos.iter().enumerate() {
         let in_playlist = if videos.len() > 1 {
@@ -91,7 +85,28 @@ fn download_inner(
             None
         };
 
-        download_single_inner(url, *platform, &args, config, inspect_dl_err, in_playlist)?;
+        let one_try = || {
+            download_single_inner(url, *platform, &args, config, in_playlist)
+                .inspect_err(|err| error_anyhow!(err))
+        };
+
+        if one_try().is_err() {
+            warn!("\nFailed on this video, waiting 5 seconds before retrying...");
+
+            std::thread::sleep(Duration::from_secs(5));
+
+            warn!("\n> Retrying...\n");
+
+            if one_try().is_err() {
+                error!("\\!/ Failed twice on this item, skipping it. \\!/\n");
+                failed += 1;
+                continue;
+            }
+        }
+    }
+
+    if failed > 0 {
+        bail!("Failed with {} errors", failed.to_string().bright_yellow());
     }
 
     Ok(())
@@ -103,15 +118,13 @@ fn download_single_inner(
     platform: Option<FoundPlatform>,
     args: &DlArgs,
     config: &Config,
-
-    inspect_dl_err: Option<ShellErrInspector>,
     in_playlist: Option<PositionInPlaylist>,
 ) -> Result<()> {
     let video_id = platform
         .as_ref()
         .map(|platform| -> Result<String> {
             Ok(platform
-                .matchers
+                .platform_matchers
                 .id_from_video_url
                 .captures(url)
                 .context("Failed to extract video ID from URL using the platform's matcher")?
@@ -284,7 +297,7 @@ fn download_single_inner(
     }
 
     // Actually calling YT-DLP here
-    run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, inspect_dl_err)
+    run_cmd_bi_outs(&config.yt_dlp_bin, &ytdl_args, Some(&inspect_err))
         .context("Failed to run YT-DLP")?;
 
     if tmp_dir.is_none() {
@@ -373,13 +386,12 @@ fn download_playlist_inner(
     config: &Config,
     platform: &FoundPlatform,
     platform_matchers: &PlatformsMatchers,
-    inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
     let FoundPlatform {
         platform_name,
         platform_config,
         is_playlist,
-        matchers: _,
+        platform_matchers: _,
     } = platform;
 
     assert!(is_playlist);
@@ -407,7 +419,7 @@ fn download_playlist_inner(
             let url = if platform.platform_name == *platform_name {
                 video.url.clone()
             } else {
-                let video_id = platform.matchers
+                let video_id = platform.platform_matchers
                         .id_from_video_url
                         .captures(&video.url)
                         .with_context(|| {
@@ -441,10 +453,39 @@ fn download_playlist_inner(
         },
         config,
         platform_matchers,
-        inspect_dl_err,
     )
 }
 
+fn inspect_err(err: &str) {
+    if !err.contains("HTTP Error 429: Too Many Requests.") {
+        return;
+    }
+
+    warn!("Failed due to too many requests being made to server.");
+
+    let mut remaining = 15 * 60;
+
+    while remaining > 0 {
+        let remaining_msg = format!(
+            "{}{}s",
+            if remaining > 60 {
+                format!("{}m ", remaining / 60)
+            } else {
+                String::new()
+            },
+            remaining % 60
+        )
+        .bright_cyan();
+
+        let message = format!(">> Waiting before retry... {}", remaining_msg).bright_yellow();
+
+        info_inline!("\r{}", message);
+        std::thread::sleep(Duration::from_secs(1));
+        remaining -= 1;
+    }
+}
+
+#[derive(Clone, Copy)]
 struct PositionInPlaylist {
     index: usize,
     total: usize,

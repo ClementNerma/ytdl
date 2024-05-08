@@ -1,4 +1,4 @@
-use std::{fs, path::Path, time::Duration};
+use std::{fs, path::Path};
 
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
@@ -7,14 +7,14 @@ use inquire::Confirm;
 use crate::{
     config::Config,
     dl::{download, DlArgs},
-    error, error_anyhow, info, info_inline, success,
+    info, success,
     sync::{blacklist::BlacklistEntry, builder::get_cache_path},
-    utils::platforms::{build_platform_matchers, PlatformsMatchers},
+    utils::platforms::build_platform_matchers,
     warn,
 };
 
 use super::{
-    blacklist::blacklist_video, builder::build_or_update_cache, cache::CacheEntry, cmd::SyncAction,
+    blacklist::blacklist_video, builder::build_or_update_cache, cmd::SyncAction,
     display::display_sync, SyncArgs,
 };
 
@@ -111,7 +111,7 @@ fn run(dry_run: bool, config: &Config, sync_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
-    let matchers = build_platform_matchers(config)?;
+    let platform_matchers = build_platform_matchers(config)?;
 
     info!("");
     info!("Do you want to continue?");
@@ -151,83 +151,26 @@ fn run(dry_run: bool, config: &Config, sync_dir: &Path) -> Result<()> {
             width = counter_len
         );
 
-        let one_try =
-            || sync_single(entry, &matchers, config).inspect_err(|err| error_anyhow!(err));
+        let result = download(
+            DlArgs {
+                urls: vec![entry.url.clone()],
+                output_dir: Some(entry.sync_dir.clone()),
+                ..Default::default()
+            },
+            config,
+            &platform_matchers,
+        );
 
-        if one_try().is_err() {
-            warn!("\nFailed on this video, waiting 5 seconds before retrying...");
-
-            std::thread::sleep(Duration::from_secs(5));
-
-            warn!("\n> Retrying...\n");
-
-            if one_try().is_err() {
-                error!("\\!/ Failed twice on this item, skipping it. \\!/\n");
-                failed += 1;
-                continue;
-            }
+        if result.is_err() {
+            failed += 1;
         }
-
-        info!("");
     }
 
-    if failed > 0 {
-        bail!("Failed with {} errors", failed.to_string().bright_yellow());
+    if failed > 1 {
+        bail!("Failed with {failed} errors");
     }
 
     fs::remove_file(&cache_path).context("Failed to remove the cache file")?;
 
     Ok(())
-}
-
-fn sync_single(
-    entry: &CacheEntry,
-    platforms_matchers: &PlatformsMatchers,
-    config: &Config,
-) -> Result<()> {
-    info!(
-        "| Video from {} at {}",
-        entry.ie_key.bright_cyan(),
-        entry.url.bright_green(),
-    );
-
-    download(
-        DlArgs {
-            urls: vec![entry.url.clone()],
-            output_dir: Some(entry.sync_dir.clone()),
-            ..Default::default()
-        },
-        config,
-        platforms_matchers,
-        Some(&wait_sync_when_too_many_requests),
-    )
-}
-
-fn wait_sync_when_too_many_requests(err: &str) {
-    if !err.contains("HTTP Error 429: Too Many Requests.") {
-        return;
-    }
-
-    warn!("Failed due to too many requests being made to server.");
-
-    let mut remaining = 15 * 60;
-
-    while remaining > 0 {
-        let remaining_msg = format!(
-            "{}{}s",
-            if remaining > 60 {
-                format!("{}m ", remaining / 60)
-            } else {
-                String::new()
-            },
-            remaining % 60
-        )
-        .bright_cyan();
-
-        let message = format!(">> Waiting before retry... {}", remaining_msg).bright_yellow();
-
-        info_inline!("\r{}", message);
-        std::thread::sleep(Duration::from_secs(1));
-        remaining -= 1;
-    }
 }

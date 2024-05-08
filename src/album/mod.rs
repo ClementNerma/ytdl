@@ -35,7 +35,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         platform_config,
         is_playlist,
         platform_name: _,
-        matchers: _,
+        platform_matchers: _,
     } = find_platform(&url, config, &platform_matchers)?;
 
     if !is_playlist {
@@ -103,7 +103,6 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
             },
             config,
             &platform_matchers,
-            None,
         )?;
 
         info!("");

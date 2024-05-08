@@ -188,7 +188,7 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
             platform_config,
             is_playlist,
             platform_name: _,
-            matchers: _,
+            platform_matchers: _,
         } = find_platform(&playlist.url, config, &platform_matchers)?;
 
         if !is_playlist {

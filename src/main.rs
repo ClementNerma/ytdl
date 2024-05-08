@@ -73,7 +73,7 @@ fn inner_main() -> Result<()> {
     let cwd = env::current_dir().context("Failed to get current directory")?;
 
     match args.action {
-        Action::Dl(args) => download(args, &config, &build_platform_matchers(&config)?, None),
+        Action::Dl(args) => download(args, &config, &build_platform_matchers(&config)?),
         Action::Sync(args) => sync(args, &config, &cwd),
         Action::Album(args) => download_album(args, &config, &cwd),
         Action::InitConfig => Ok(()),

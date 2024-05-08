@@ -66,9 +66,9 @@ pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
 pub fn find_platform<'a, 'b>(
     url: &str,
     config: &'a Config,
-    matchers: &'b PlatformsMatchers,
+    platform_matchers: &'b PlatformsMatchers,
 ) -> Result<FoundPlatform<'a, 'b>> {
-    try_find_platform(url, config, matchers).and_then(|matcher| {
+    try_find_platform(url, config, platform_matchers).and_then(|matcher| {
         matcher.ok_or_else(|| anyhow!("No platform found for provided URL: {}", url.bright_cyan()))
     })
 }
@@ -76,34 +76,34 @@ pub fn find_platform<'a, 'b>(
 pub fn try_find_platform<'a, 'b>(
     url: &str,
     config: &'a Config,
-    matchers: &'b PlatformsMatchers,
+    platform_matchers: &'b PlatformsMatchers,
 ) -> Result<Option<FoundPlatform<'a, 'b>>> {
     for (name, platform_config) in &config.platforms {
-        let matchers = matchers
+        let platform_matchers = platform_matchers
             .get(name)
             .context("Internal consistency error: failed to get platform's matcher")?;
 
-        if matchers.id_from_video_url.is_match(url) {
+        if platform_matchers.id_from_video_url.is_match(url) {
             return Ok(Some(FoundPlatform {
                 platform_name: name,
                 platform_config,
-                matchers,
+                platform_matchers,
                 is_playlist: false,
             }));
         }
 
-        for matcher in &matchers.playlist_url_matchers {
+        for matcher in &platform_matchers.playlist_url_matchers {
             if matcher.is_match(url) {
                 return Ok(Some(FoundPlatform {
                     platform_name: name,
                     platform_config,
-                    matchers,
+                    platform_matchers,
                     is_playlist: true,
                 }));
             }
         }
 
-        if matchers.platform_url_matcher.is_match(url) {
+        if platform_matchers.platform_url_matcher.is_match(url) {
             bail!("Detected URL '{url}' as platform '{name}' but the video and playlist regexes didn't detect it as valid!");
         }
     }
@@ -148,7 +148,7 @@ pub fn determine_video_id(
 pub struct FoundPlatform<'a, 'b> {
     pub platform_name: &'a str,
     pub platform_config: &'a PlatformConfig,
-    pub matchers: &'b PlatformMatchingRegexes,
+    pub platform_matchers: &'b PlatformMatchingRegexes,
     pub is_playlist: bool,
 }
 
