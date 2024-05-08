@@ -90,7 +90,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
         download(
             DlArgs {
-                url: entry.url.clone(),
+                urls: vec![entry.url.clone()],
                 no_temp_dir: true,
                 output_dir: Some(tmp_dir.clone()),
                 format: Some("bestaudio".to_string()),

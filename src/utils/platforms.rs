@@ -144,6 +144,7 @@ pub fn determine_video_id(
     Ok(id.as_str().to_string())
 }
 
+#[derive(Clone, Copy)]
 pub struct FoundPlatform<'a, 'b> {
     pub platform_name: &'a str,
     pub platform_config: &'a PlatformConfig,

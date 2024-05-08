@@ -32,7 +32,7 @@ pub fn download(
     platform_matchers: &PlatformsMatchers,
     inspect_dl_err: Option<ShellErrInspector>,
 ) -> Result<()> {
-    download_inner(args, config, platform_matchers, inspect_dl_err, None)
+    download_inner(args, config, platform_matchers, inspect_dl_err)
 }
 
 fn download_inner(
@@ -40,33 +40,80 @@ fn download_inner(
     config: &Config,
     platform_matchers: &PlatformsMatchers,
     inspect_dl_err: Option<ShellErrInspector>,
-    in_playlist: Option<VideoInPlaylist>,
 ) -> Result<()> {
     if args.no_platform && !args.skip_repair_date {
         bail!("Cannot repair date without a platform");
     }
 
-    let platform = try_find_platform(&args.url, config, platform_matchers)?;
+    let mut videos = Vec::with_capacity(args.urls.len());
 
-    if let Some(platform) = &platform {
-        if platform.is_playlist {
-            return download_playlist_inner(
-                &args,
-                config,
-                platform,
-                platform_matchers,
-                inspect_dl_err,
-            );
+    for url in &args.urls {
+        let platform = try_find_platform(url, config, platform_matchers)?;
+
+        if let Some(platform) = &platform {
+            if platform.is_playlist {
+                if args.urls.len() > 1 {
+                    bail!("Cannot mix playlist and non-playlist downloads");
+                }
+
+                return download_playlist_inner(
+                    url,
+                    &args,
+                    config,
+                    platform,
+                    platform_matchers,
+                    inspect_dl_err,
+                );
+            }
         }
+
+        videos.push((url, platform));
     }
 
+    let colored_total = videos.len().to_string().bright_yellow();
+
+    for (i, (url, platform)) in videos.iter().enumerate() {
+        let in_playlist = if videos.len() > 1 {
+            if i > 0 {
+                info!("");
+            }
+
+            info!(
+                "> Downloading video {} / {colored_total}...",
+                (i + 1).to_string().bright_yellow()
+            );
+
+            Some(PositionInPlaylist {
+                index: i,
+                total: videos.len(),
+            })
+        } else {
+            None
+        };
+
+        download_single_inner(url, *platform, &args, config, inspect_dl_err, in_playlist)?;
+    }
+
+    Ok(())
+}
+
+// NOTE: ignores `args.url`
+fn download_single_inner(
+    url: &str,
+    platform: Option<FoundPlatform>,
+    args: &DlArgs,
+    config: &Config,
+
+    inspect_dl_err: Option<ShellErrInspector>,
+    in_playlist: Option<PositionInPlaylist>,
+) -> Result<()> {
     let video_id = platform
         .as_ref()
         .map(|platform| -> Result<String> {
             Ok(platform
                 .matchers
                 .id_from_video_url
-                .captures(&args.url)
+                .captures(url)
                 .context("Failed to extract video ID from URL using the platform's matcher")?
                 .name(ID_REGEX_MATCHING_GROUP_NAME)
                 .unwrap()
@@ -207,7 +254,7 @@ fn download_inner(
             .context("Output directory contains invalid UTF-8 characters")?,
     );
 
-    ytdl_args.push(&args.url);
+    ytdl_args.push(url);
 
     for arg in &args.forward {
         ytdl_args.push(arg);
@@ -321,6 +368,7 @@ fn download_inner(
 }
 
 fn download_playlist_inner(
+    playlist_url: &str,
     args: &DlArgs,
     config: &Config,
     platform: &FoundPlatform,
@@ -340,7 +388,7 @@ fn download_playlist_inner(
 
     let playlist = fetch_playlist(
         &config.yt_dlp_bin,
-        &args.url,
+        playlist_url,
         args.cookies_from_browser.as_deref(),
     )
     .context("Failed to fetch the playlist's content")?;
@@ -350,13 +398,15 @@ fn download_playlist_inner(
     info!("Detected {} videos.", colored_total);
     info!("");
 
-    let mut entries = playlist.entries;
+    let mut urls = Vec::with_capacity(playlist.entries.len());
 
-    for video in entries.iter_mut() {
+    for video in &playlist.entries {
         if platform_config.redirect_playlist_videos == Some(true) {
             let platform = find_platform(&video.url, config, platform_matchers)?;
 
-            if platform.platform_name != *platform_name {
+            let url = if platform.platform_name == *platform_name {
+                video.url.clone()
+            } else {
                 let video_id = platform.matchers
                         .id_from_video_url
                         .captures(&video.url)
@@ -372,45 +422,30 @@ fn download_playlist_inner(
                         .as_str()
                         .to_string();
 
-                video.url = format!("{}{}", platform_config.videos_url_prefix, video_id);
-            }
+                format!("{}{}", platform_config.videos_url_prefix, video_id)
+            };
+
+            urls.push(url);
         }
     }
 
-    for (i, video) in entries.iter().enumerate() {
-        info!(
-            "> Downloading video {} / {colored_total}...",
-            (i + 1).to_string().bright_yellow()
-        );
-
-        let cloned = args.clone();
-
-        download_inner(
-            DlArgs {
-                url: video.url.clone(),
-                cookies_from_browser: platform_config
-                    .dl_options
-                    .cookies_from_browser
-                    .clone()
-                    .or(cloned.cookies_from_browser),
-                ..cloned
-            },
-            config,
-            platform_matchers,
-            inspect_dl_err,
-            Some(VideoInPlaylist {
-                index: i,
-                total: entries.len(),
-            }),
-        )?;
-
-        info!("");
-    }
-
-    Ok(())
+    download_inner(
+        DlArgs {
+            urls,
+            cookies_from_browser: platform_config
+                .dl_options
+                .cookies_from_browser
+                .clone()
+                .or(args.cookies_from_browser.clone()),
+            ..args.clone()
+        },
+        config,
+        platform_matchers,
+        inspect_dl_err,
+    )
 }
 
-struct VideoInPlaylist {
+struct PositionInPlaylist {
     index: usize,
     total: usize,
 }

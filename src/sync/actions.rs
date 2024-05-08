@@ -193,7 +193,7 @@ fn sync_single(
 
     download(
         DlArgs {
-            url: entry.url.clone(),
+            urls: vec![entry.url.clone()],
             output_dir: Some(entry.sync_dir.clone()),
             ..Default::default()
         },
