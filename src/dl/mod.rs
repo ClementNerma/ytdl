@@ -41,7 +41,7 @@ fn download_inner(
     platform_matchers: &PlatformsMatchers,
 ) -> Result<()> {
     if args.no_platform && !args.skip_repair_date {
-        bail!("Cannot repair date without a platform");
+        bail!("Cannot repair date without a platform\n\n{REPAIR_DATE_EXPLANATION}");
     }
 
     let mut videos = Vec::with_capacity(args.urls.len());
@@ -217,7 +217,7 @@ fn download_single_inner(
 
     if tmp_dir.is_none() && !dl_options.skip_repair_date.unwrap_or(false) && !args.skip_repair_date
     {
-        bail!("Cannot repair date in a non-temporary directory.");
+        bail!("Cannot repair date in a non-temporary directory.\n\n{REPAIR_DATE_EXPLANATION}");
     }
 
     if !args.no_thumbnail && dl_options.no_thumbnail != Some(true) {
@@ -490,3 +490,13 @@ struct PositionInPlaylist {
     index: usize,
     total: usize,
 }
+
+static REPAIR_DATE_EXPLANATION: &str = r#"
+By default, ytdl tries to write the videos' upload date to the downloaded files' metadata.
+
+This requires specific support by the platform by the platform you're downloading from,
+and also to use a temporary directory.
+
+If you wish to disable this behaviour, use the `--skip-repair-date` option, or configure it
+in your ytdl-config.json file.
+"#;
