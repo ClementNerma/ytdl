@@ -1,5 +1,3 @@
-mod cmd;
-
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -7,7 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-pub use cmd::AlbumArgs;
+use clap::Args;
 use colored::Colorize;
 use reqwest::{header, Url};
 use serde::Deserialize;
@@ -22,6 +20,15 @@ use crate::{
     },
     warn,
 };
+
+#[derive(Args)]
+pub struct AlbumArgs {
+    #[clap(help = "URL of the playlist (or single track) to download")]
+    pub url: String,
+
+    #[clap(long, help = "Use cookies from the provided browser")]
+    pub cookies_from_browser: Option<String>,
+}
 
 pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()> {
     let AlbumArgs {
