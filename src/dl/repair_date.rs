@@ -103,7 +103,7 @@ pub fn apply_mtime(file: &Path, date: UploadDate) -> Result<()> {
             .arg(file)
             .arg("-m")
             .arg("-d")
-            .arg(&format!(
+            .arg(format!(
                 "{:0>4}{:0>2}{:0>2}",
                 date.year, date.month, date.day
             )),

@@ -78,12 +78,10 @@ pub fn run_custom_cmd_bi_outs(
     let stderr = std::str::from_utf8(&stderr_bytes)
         .context("Failed to decode command STDERR output as UTF-8")?;
 
-    ensure_cmd_success(cmd, &status, &stderr_bytes).map_err(|err| {
+    ensure_cmd_success(cmd, &status, &stderr_bytes).inspect_err(|_| {
         if let Some(f) = inspect_err {
             f(stderr);
         }
-
-        err
     })
 }
 
