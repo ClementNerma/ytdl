@@ -4,29 +4,29 @@ version = "0.12.3"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.5.3", features = ["derive"] }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.114"
+clap = { version = "4.5.20", features = ["derive"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0.128"
 walkdir = "2.5.0"
-regex = "1.10.3"
-rayon = "1.9.0"
+regex = "1.11.0"
+rayon = "1.10.0"
 indicatif = "0.17.8"
 colored = "2.1.0"
 dirs = "5.0.1"
-anyhow = "1.0.81"
-inquire = "0.7.2"
-time = { version = "0.3.34", features = [
+anyhow = "1.0.89"
+inquire = "0.7.5"
+time = { version = "0.3.36", features = [
     "formatting",
     "parsing",
     "local-offset",
 ] }
 pomsky = "0.11.0"
 pomsky-macro = "0.11.0"
-unicode-width = "0.1.11"
-once_cell = "1.19.0"
-terminal_size = "0.3.0"
-reqwest = { version = "0.11.27", features = [
+unicode-width = "0.2.0"
+once_cell = "1.20.2"
+terminal_size = "0.4.0"
+reqwest = { version = "0.12.8", features = [
     "blocking",
     "native-tls-vendored",
 ] }
-mime_guess = "2.0.4"
+mime_guess = "2.0.5"
