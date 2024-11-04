@@ -213,7 +213,11 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
         let file_ext = dl_file.extension().unwrap().to_str().unwrap();
 
-        let track_file = album_dir.join(format!("{:0counter_len$}. {track}.{file_ext}", i + 1));
+        let track_file = album_dir.join(format!(
+            "{:0counter_len$}. {}.{file_ext}",
+            i + 1,
+            sanitize_filename(track)
+        ));
 
         moves.push((dl_file, track_file));
     }
