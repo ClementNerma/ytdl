@@ -15,6 +15,7 @@ use crate::{
     dl::{download, DlArgs},
     info, success,
     utils::{
+        filenames::sanitize_filename,
         platforms::{build_platform_matchers, find_platform, FoundPlatform},
         ytdlp::{fetch_playlist, RawPlaylist},
     },
@@ -169,10 +170,19 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
         let album_dir = match initial_track_metadata {
             None => {
-                let album_dir = cwd.join(format!("{uploader} - {album}"));
+                let album_dir = cwd.join(format!(
+                    "{} - {}",
+                    sanitize_filename(uploader),
+                    sanitize_filename(album)
+                ));
 
                 if !album_dir.exists() {
-                    fs::create_dir(&album_dir).context("Failed to create album directory")?;
+                    fs::create_dir(&album_dir).with_context(|| {
+                        format!(
+                            "Failed to create album directory at: {}",
+                            album_dir.display()
+                        )
+                    })?;
                 }
 
                 initial_track_metadata = Some((track_metadata.clone(), album_dir.clone()));
