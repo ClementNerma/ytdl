@@ -19,7 +19,10 @@ pub enum SyncAction {
     },
 
     Blacklist {
-        #[clap(help = "Entry to (un-)blacklist (syntax: Platform/ID)")]
-        entry: String,
+        #[clap(help = "Platform the video belongs to")]
+        platform: String,
+
+        #[clap(help = "ID of the video to blacklist")]
+        video_id: String,
     },
 }

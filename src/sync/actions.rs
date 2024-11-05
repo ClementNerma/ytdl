@@ -24,7 +24,9 @@ pub fn sync(args: SyncArgs, config: &Config, sync_dir: &Path) -> Result<()> {
     match action {
         SyncAction::Setup { url } => setup(&url, config, sync_dir),
         SyncAction::Run { dry_run } => run(dry_run, config, sync_dir),
-        SyncAction::Blacklist { entry } => blacklist(&entry, config, sync_dir),
+        SyncAction::Blacklist { platform, video_id } => {
+            blacklist(BlacklistEntry::new(platform, video_id), config, sync_dir)
+        }
     }
 }
 
@@ -54,9 +56,7 @@ fn setup(url: &str, config: &Config, sync_dir: &Path) -> Result<()> {
     }
 }
 
-fn blacklist(entry: &str, config: &Config, sync_dir: &Path) -> Result<()> {
-    let entry = BlacklistEntry::decode(entry).context("Failed to decode provided entry")?;
-
+fn blacklist(entry: BlacklistEntry, config: &Config, sync_dir: &Path) -> Result<()> {
     if !config.platforms.contains_key(entry.ie_key()) {
         bail!(
             "Unkonwn IE key '{}'. Registered platforms are: {}",
