@@ -413,32 +413,33 @@ fn download_playlist_inner(
     let mut urls = Vec::with_capacity(playlist.entries.len());
 
     for video in &playlist.entries {
-        if platform_config.redirect_playlist_videos == Some(true) {
-            let platform = find_platform(&video.url, config, platform_matchers)?;
+        let platform = find_platform(&video.url, config, platform_matchers)?;
 
-            let url = if platform.platform_name == *platform_name {
-                video.url.clone()
-            } else {
-                let video_id = platform.platform_matchers
-                        .id_from_video_url
-                        .captures(&video.url)
-                        .with_context(|| {
-                            format!(
-                                "Failed to extract video ID from URL ({}) using the platform's ({}) matcher",
-                                video.url.bright_magenta(),
-                                platform.platform_name.bright_cyan()
-                            )
-                        })?
-                        .name(ID_REGEX_MATCHING_GROUP_NAME)
-                        .unwrap()
-                        .as_str()
-                        .to_string();
+        let url = if platform.platform_name == *platform_name {
+            video.url.clone()
+        } else if platform_config.redirect_playlist_videos == Some(true) {
+            let video_id = platform.platform_matchers
+                .id_from_video_url
+                .captures(&video.url)
+                .with_context(|| {
+                    format!(
+                        "Failed to extract video ID from URL ({}) using the platform's ({}) matcher",
+                        video.url.bright_magenta(),
+                        platform.platform_name.bright_cyan()
+                    )
+                })?
+                .name(ID_REGEX_MATCHING_GROUP_NAME)
+                .unwrap()
+                .as_str()
+                .to_string();
 
-                format!("{}{}", platform_config.videos_url_prefix, video_id)
-            };
+            format!("{}{}", platform_config.videos_url_prefix, video_id)
+        } else {
+            warn!("Skipping video {} as it belongs to another platform. Use --redirect-playlist-videos to download anyway.", video.url.bright_magenta());
+            continue;
+        };
 
-            urls.push(url);
-        }
+        urls.push(url);
     }
 
     download_inner(
