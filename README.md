@@ -173,7 +173,6 @@ Let's start by adding the relevant profile to our configuration file:
             "dl_options": {
                 "download_format": "bestaudio",
                 "bandwidth_limit": "25M",
-                "cookie_profile": "ytmusic",
                 "no_thumbnail": true,
                 "redirect_playlist_videos": true
             }
