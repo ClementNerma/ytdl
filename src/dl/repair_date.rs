@@ -1,7 +1,10 @@
 use crate::{
-    config::PlatformConfig,
+    config::{PlatformConfig, UseCookiesFrom},
     error, info_inline, success,
-    utils::shell::{run_cmd, run_custom_cmd},
+    utils::{
+        shell::{run_cmd, run_custom_cmd},
+        ytdlp::append_cookies_args,
+    },
     warn,
 };
 use anyhow::{bail, Context, Result};
@@ -23,7 +26,7 @@ pub fn repair_date(
     video_id: &str,
     yt_dlp_bin: &Path,
     platform: &PlatformConfig,
-    cookie_file: Option<&str>,
+    cookies: Option<&UseCookiesFrom>,
 ) -> Result<Option<UploadDate>> {
     assert!(
         file.is_file(),
@@ -53,9 +56,8 @@ pub fn repair_date(
 
     let mut args = ["--get-filename", "-o", "%(upload_date)s"].to_vec();
 
-    if let Some(cookie_file) = cookie_file {
-        args.push("--cookies");
-        args.push(cookie_file);
+    if let Some(cookies) = cookies {
+        append_cookies_args(&mut args, cookies);
     }
 
     let url = format!("{}{}", platform.videos_url_prefix, video_id);

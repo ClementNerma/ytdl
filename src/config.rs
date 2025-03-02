@@ -88,7 +88,7 @@ pub struct PlatformDownloadOptions {
     pub rate_limited: Option<bool>,
 
     /// Use cookies from the provided browser
-    pub cookies_from_browser: Option<String>,
+    pub cookies: Option<UseCookiesFrom>,
 
     /// Disable repairing the video's date
     pub skip_repair_date: Option<bool>,
@@ -101,4 +101,13 @@ pub struct PlatformDownloadOptions {
 
     /// Disable thumbnail downloading and embedding
     pub no_thumbnail: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum UseCookiesFrom {
+    #[serde(rename = "browser")]
+    Browser(String),
+
+    #[serde(rename = "file")]
+    File(String),
 }

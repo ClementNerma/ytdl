@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
+use crate::config::UseCookiesFrom;
+
 use super::shell::run_cmd;
 
 #[derive(Deserialize)]
@@ -25,17 +27,12 @@ pub fn check_version(bin: &Path) -> Result<String> {
 pub fn fetch_playlist(
     bin: &Path,
     url: &str,
-    cookies_from_browser: Option<&str>,
+    cookies: Option<&UseCookiesFrom>,
 ) -> Result<RawPlaylist> {
-    let mut args = vec![
-        "-J".to_owned(),
-        "--flat-playlist".to_owned(),
-        url.to_owned(),
-    ];
+    let mut args = vec!["-J", "--flat-playlist", url];
 
-    if let Some(cookies_from_browser) = cookies_from_browser {
-        args.push("--cookies-from-browser".to_owned());
-        args.push(cookies_from_browser.to_owned())
+    if let Some(cookies) = cookies {
+        append_cookies_args(&mut args, cookies);
     }
 
     let output = run_cmd(bin, &args)?;
@@ -51,4 +48,18 @@ pub fn fetch_playlist(
 pub fn check_availability(bin: &Path, url: &str) -> Result<bool> {
     // TODO: detect if error is caused by video being unavailable or by another error in YT-DLP
     Ok(run_cmd(bin, &["--get-url", url]).is_ok())
+}
+
+pub fn append_cookies_args<'a>(ytdlp_args: &mut Vec<&'a str>, cookies: &'a UseCookiesFrom) {
+    match cookies {
+        UseCookiesFrom::Browser(browser) => {
+            ytdlp_args.push("--cookies-from-browser");
+            ytdlp_args.push(browser);
+        }
+
+        UseCookiesFrom::File(file) => {
+            ytdlp_args.push("--cookies");
+            ytdlp_args.push(file);
+        }
+    }
 }

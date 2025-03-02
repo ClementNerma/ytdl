@@ -2,11 +2,11 @@ mod cmd;
 mod constants;
 mod repair_date;
 
-pub use cmd::DlArgs;
+pub use cmd::*;
 pub use constants::*;
 
 use crate::{
-    config::{Config, PlatformDownloadOptions},
+    config::{Config, PlatformDownloadOptions, UseCookiesFrom},
     dl::repair_date::{apply_mtime, repair_date},
     error, error_anyhow, info, info_inline, success,
     utils::{
@@ -15,7 +15,7 @@ use crate::{
             ID_REGEX_MATCHING_GROUP_NAME,
         },
         shell::run_cmd_bi_outs,
-        ytdlp::fetch_playlist,
+        ytdlp::{append_cookies_args, fetch_playlist},
     },
     warn,
 };
@@ -142,7 +142,7 @@ fn download_single_inner(
             bandwidth_limit: None,
             needs_checking: None,
             rate_limited: None,
-            cookies_from_browser: None,
+            cookies: None,
             skip_repair_date: Some(true),
             output_format: None,
             download_format: None,
@@ -229,14 +229,10 @@ fn download_single_inner(
         }
     }
 
-    let cookies_from_browser = args
-        .cookies_from_browser
-        .as_ref()
-        .or(dl_options.cookies_from_browser.as_ref());
+    let cookies = args.cookies.as_ref().or(dl_options.cookies.as_ref());
 
-    if let Some(cookies_from_browser) = cookies_from_browser {
-        ytdl_args.push("--cookies-from-browser");
-        ytdl_args.push(cookies_from_browser);
+    if let Some(cookies) = cookies {
+        append_cookies_args(&mut ytdl_args, cookies);
     }
 
     let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);
@@ -279,8 +275,11 @@ fn download_single_inner(
             Some(platform) => format!("from platform {}", platform.platform_name.bright_cyan()),
             None => "without a platform".bright_yellow().to_string(),
         },
-        match cookies_from_browser {
-            Some(name) => format!(" (with cookies from browser {})", name.bright_yellow()),
+        match cookies {
+            Some(UseCookiesFrom::Browser(name)) =>
+                format!(" (with cookies from browser {})", name.bright_yellow()),
+            Some(UseCookiesFrom::File(path)) =>
+                format!(" (with cookies from file {})", path.bright_magenta()),
             None => String::new(),
         }
     );
@@ -331,7 +330,7 @@ fn download_single_inner(
             &video_id.unwrap(),
             &config.yt_dlp_bin,
             platform.unwrap().platform_config,
-            cookies_from_browser.map(String::as_str),
+            cookies,
         )?
     } else {
         None
@@ -398,12 +397,8 @@ fn download_playlist_inner(
 
     info!("Fetching playlist's content...");
 
-    let playlist = fetch_playlist(
-        &config.yt_dlp_bin,
-        playlist_url,
-        args.cookies_from_browser.as_deref(),
-    )
-    .context("Failed to fetch the playlist's content")?;
+    let playlist = fetch_playlist(&config.yt_dlp_bin, playlist_url, args.cookies.as_ref())
+        .context("Failed to fetch the playlist's content")?;
 
     let colored_total = playlist.entries.len().to_string().bright_yellow();
 
@@ -445,11 +440,11 @@ fn download_playlist_inner(
     download_inner(
         DlArgs {
             urls,
-            cookies_from_browser: platform_config
+            cookies: platform_config
                 .dl_options
-                .cookies_from_browser
+                .cookies
                 .clone()
-                .or(args.cookies_from_browser.clone()),
+                .or(args.cookies.clone()),
             ..args.clone()
         },
         config,

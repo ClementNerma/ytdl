@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::Args;
 
+use crate::config::UseCookiesFrom;
+
 #[derive(Args, Clone, Default)]
 pub struct DlArgs {
     #[clap(help = "URL(s) of the video/playlist/channel/... to download")]
@@ -44,8 +46,13 @@ pub struct DlArgs {
     #[clap(long, help = "Limit the download bandwidth")]
     pub limit_bandwidth: Option<String>,
 
-    #[clap(long, help = "Use cookies from the provided browser")]
-    pub cookies_from_browser: Option<String>,
+    #[clap(
+        long,
+        help = "Use cookies from a browser or a file",
+        long_help = "'browser:<name>' to extract from a browser (e.g. 'firefox' or 'chrome'), 'file:/path/to/file' to use a file",
+        value_parser = parse_cookies_arg
+    )]
+    pub cookies: Option<UseCookiesFrom>,
 
     #[clap(long, help = "Repair every videos' date after download")]
     pub skip_repair_date: bool,
@@ -59,4 +66,14 @@ pub struct DlArgs {
         allow_hyphen_values = true
     )]
     pub forward: Vec<String>,
+}
+
+pub fn parse_cookies_arg(arg: &str) -> Result<UseCookiesFrom, String> {
+    if let Some(browser_name) = arg.strip_prefix("browser:") {
+        Ok(UseCookiesFrom::Browser(browser_name.to_owned()))
+    } else if let Some(file_path) = arg.strip_prefix("file:") {
+        Ok(UseCookiesFrom::File(file_path.to_owned()))
+    } else {
+        Err(format!("Invalid cookies source: {arg}"))
+    }
 }

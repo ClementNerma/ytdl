@@ -11,8 +11,8 @@ use reqwest::{header, Url};
 use serde::Deserialize;
 
 use crate::{
-    config::Config,
-    dl::{download, DlArgs},
+    config::{Config, UseCookiesFrom},
+    dl::{download, parse_cookies_arg, DlArgs},
     info, success,
     utils::{
         filenames::sanitize_filename,
@@ -27,15 +27,12 @@ pub struct AlbumArgs {
     #[clap(help = "URL of the playlist (or single track) to download")]
     pub url: String,
 
-    #[clap(long, help = "Use cookies from the provided browser")]
-    pub cookies_from_browser: Option<String>,
+    #[clap(long, help = "Use cookies", value_parser = parse_cookies_arg)]
+    pub cookies: Option<UseCookiesFrom>,
 }
 
 pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()> {
-    let AlbumArgs {
-        url,
-        cookies_from_browser,
-    } = args;
+    let AlbumArgs { url, cookies } = args;
 
     let platform_matchers = build_platform_matchers(config)?;
 
@@ -57,9 +54,9 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
         &url,
         platform_config
             .dl_options
-            .cookies_from_browser
-            .as_deref()
-            .or(cookies_from_browser.as_deref()),
+            .cookies
+            .as_ref()
+            .or(cookies.as_ref()),
     )?;
 
     info!(
@@ -105,7 +102,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                 forward: vec!["--write-info-json".to_string()],
                 no_thumbnail: true,
                 skip_repair_date: true,
-                cookies_from_browser: cookies_from_browser.clone(),
+                cookies: cookies.clone(),
                 filenaming: Some(format!("{:0counter_len$}. %(title)s.%(ext)s", i + 1)),
                 ..Default::default()
             },
