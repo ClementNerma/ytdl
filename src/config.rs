@@ -74,6 +74,7 @@ pub struct PlatformConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct PlatformDownloadOptions {
     /// Bandwidth limit (e.g. "20M" for 20 MB/s)
     pub bandwidth_limit: Option<String>,
