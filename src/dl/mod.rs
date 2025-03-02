@@ -232,7 +232,7 @@ fn download_single_inner(
     let cookies = args.cookies.as_ref().or(dl_options.cookies.as_ref());
 
     if let Some(cookies) = cookies {
-        append_cookies_args(&mut ytdl_args, cookies);
+        append_cookies_args(&mut ytdl_args, cookies)?;
     }
 
     let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);

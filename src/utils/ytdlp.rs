@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +32,7 @@ pub fn fetch_playlist(
     let mut args = vec!["-J", "--flat-playlist", url];
 
     if let Some(cookies) = cookies {
-        append_cookies_args(&mut args, cookies);
+        append_cookies_args(&mut args, cookies)?;
     }
 
     let output = run_cmd(bin, &args)?;
@@ -50,16 +50,27 @@ pub fn check_availability(bin: &Path, url: &str) -> Result<bool> {
     Ok(run_cmd(bin, &["--get-url", url]).is_ok())
 }
 
-pub fn append_cookies_args<'a>(ytdlp_args: &mut Vec<&'a str>, cookies: &'a UseCookiesFrom) {
+pub fn append_cookies_args<'a>(
+    ytdlp_args: &mut Vec<&'a str>,
+    cookies: &'a UseCookiesFrom,
+) -> Result<()> {
     match cookies {
         UseCookiesFrom::Browser(browser) => {
+            // TODO: ensure browser exists
+
             ytdlp_args.push("--cookies-from-browser");
             ytdlp_args.push(browser);
         }
 
         UseCookiesFrom::File(file) => {
+            if !Path::new(file).is_file() {
+                bail!("Cookie file does not exist: {}", file);
+            }
+
             ytdlp_args.push("--cookies");
             ytdlp_args.push(file);
         }
     }
+
+    Ok(())
 }

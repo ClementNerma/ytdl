@@ -57,7 +57,7 @@ pub fn repair_date(
     let mut args = ["--get-filename", "-o", "%(upload_date)s"].to_vec();
 
     if let Some(cookies) = cookies {
-        append_cookies_args(&mut args, cookies);
+        append_cookies_args(&mut args, cookies)?;
     }
 
     let url = format!("{}{}", platform.videos_url_prefix, video_id);
