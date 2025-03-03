@@ -333,19 +333,23 @@ fn download_single_inner(
     ytdl_args.push(url);
 
     info!(
-        "> Downloading video {}{}",
+        "> Downloading video {}",
         match &platform {
             Some(platform) => format!("from platform {}", platform.platform_name.bright_cyan()),
             None => "without a platform".bright_yellow().to_string(),
-        },
-        match cookies {
-            Some(UseCookiesFrom::Browser(name)) =>
-                format!(" (with cookies from browser {})", name.bright_yellow()),
-            Some(UseCookiesFrom::File(path)) =>
-                format!(" (with cookies from file {})", path.bright_magenta()),
-            None => String::new(),
         }
     );
+
+    if let Some(cookies) = cookies {
+        match cookies {
+            UseCookiesFrom::Browser(name) => {
+                info!("| Using cookies from browser {}", name.bright_yellow())
+            }
+            UseCookiesFrom::File(path) => {
+                info!("| Using cookies from file {}", path.bright_magenta())
+            }
+        }
+    }
 
     if let Some(args) = &platform_dl_options.forward_ytdlp_args {
         info!(
