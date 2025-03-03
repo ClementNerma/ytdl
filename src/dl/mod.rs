@@ -281,6 +281,15 @@ fn download_single_inner(
         }
     );
 
+    if let Some(args) = &dl_options.forward_ytdlp_args {
+        info!(
+            "| Forwarding additional YT-DLP arguments from platform configuration: {}",
+            args.join(" ").bright_yellow()
+        );
+
+        ytdl_args.extend(args.iter().map(String::as_str));
+    }
+
     if !args.forward_ytdlp_args.is_empty() {
         info!(
             "| Forwarding additional YT-DLP arguments from command line: {}",

@@ -101,6 +101,9 @@ pub struct PlatformDownloadOptions {
 
     /// Disable thumbnail downloading and embedding
     pub no_thumbnail: Option<bool>,
+
+    /// Additional arguments to forward to YT-DLP
+    pub forward_ytdlp_args: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
