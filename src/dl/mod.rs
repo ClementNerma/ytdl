@@ -116,7 +116,13 @@ fn download_inner(
             .filter(|p| p.platform_config.dl_options.rate_limited == Some(true))
             .map(|p| p.platform_name);
 
-        if let Some(last_dl) =
+        if args.rate_limited {
+            warn!(
+                "| Rate limited download requested, waiting {} seconds before downloading...",
+                RATE_LIMITED_WAIT_DURATION_SECS
+            );
+            std::thread::sleep(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
+        } else if let Some(last_dl) =
             rate_limited_platform_name.and_then(|name| last_dl_from_platforms.get(name))
         {
             let remaining_wait = Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS)
