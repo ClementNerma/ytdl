@@ -85,6 +85,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
             (
                 entry.url.clone(),
                 SingleDlArgs {
+                    prefetched_title: Some(entry.title.clone()),
                     no_temp_dir: true,
                     output_dir: Some(tmp_dir.clone()),
                     format: Some("bestaudio".to_string()),

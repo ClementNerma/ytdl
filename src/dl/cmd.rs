@@ -76,6 +76,10 @@ pub struct SingleDlArgs {
         allow_hyphen_values = true
     )]
     pub forward_ytdlp_args: Vec<String>,
+
+    #[clap(skip)]
+    /// Prefetched title of the video
+    pub prefetched_title: Option<String>,
 }
 
 pub fn parse_cookies_arg(arg: &str) -> Result<UseCookiesFrom, String> {

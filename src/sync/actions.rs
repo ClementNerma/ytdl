@@ -144,6 +144,7 @@ fn run(dry_run: bool, config: &Config, sync_dir: &Path) -> Result<()> {
             (
                 entry.url,
                 SingleDlArgs {
+                    prefetched_title: Some(entry.title),
                     output_dir: Some(entry.sync_dir),
                     ..Default::default()
                 },

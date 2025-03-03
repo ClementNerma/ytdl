@@ -93,8 +93,12 @@ fn download_inner(
             }
 
             info!(
-                "> Downloading video {} / {colored_total}...",
-                (i + 1).to_string().bright_yellow()
+                "> Downloading video {} / {colored_total}{}...",
+                (i + 1).to_string().bright_yellow(),
+                match &args.prefetched_title {
+                    Some(title) => format!(": {}", title.bright_magenta()),
+                    None => String::new(),
+                }
             );
 
             Some(PositionInPlaylist {
