@@ -109,20 +109,20 @@ fn download_inner(
             .filter(|p| p.platform_config.dl_options.rate_limited == Some(true))
             .map(|p| p.platform_name);
 
-        if let Some(platform_name) = rate_limited_platform_name {
-            if let Some(last_dl) = last_dl_from_platforms.get(platform_name) {
-                let remaining_wait = last_dl
-                    .elapsed()
-                    .saturating_sub(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
+        if let Some(last_dl) =
+            rate_limited_platform_name.and_then(|name| last_dl_from_platforms.get(name))
+        {
+            let remaining_wait = last_dl
+                .elapsed()
+                .saturating_sub(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
 
-                if !remaining_wait.is_zero() {
-                    warn!(
-                        "Waiting {} seconds before downloading from the same platform again...",
-                        remaining_wait.as_secs()
-                    );
+            if !remaining_wait.is_zero() {
+                warn!(
+                    "Waiting {} seconds before downloading from the same platform again...",
+                    remaining_wait.as_secs()
+                );
 
-                    std::thread::sleep(Duration::from_secs(remaining_wait.as_secs()));
-                }
+                std::thread::sleep(Duration::from_secs(remaining_wait.as_secs()));
             }
         }
 
@@ -132,9 +132,15 @@ fn download_inner(
         };
 
         if one_try().is_err() {
-            warn!("\nFailed on this video, waiting 5 seconds before retrying...");
+            let wait_duration = if rate_limited_platform_name.is_some() {
+                RATE_LIMITED_WAIT_DURATION_SECS
+            } else {
+                AFTER_FAILURE_WAIT_DURATION_SECS
+            };
 
-            std::thread::sleep(Duration::from_secs(5));
+            warn!("\nFailed on this video, waiting {wait_duration} seconds before retrying...");
+
+            std::thread::sleep(Duration::from_secs(wait_duration));
 
             warn!("\n> Retrying...\n");
 
@@ -159,7 +165,6 @@ fn download_inner(
     Ok(())
 }
 
-// NOTE: ignores `args.url`
 fn download_single_inner(
     url: &str,
     platform: Option<FoundPlatform>,
@@ -563,6 +568,7 @@ struct PositionInPlaylist {
     total: usize,
 }
 
+static AFTER_FAILURE_WAIT_DURATION_SECS: u64 = 5;
 static RATE_LIMITED_WAIT_DURATION_SECS: u64 = 120;
 
 static REPAIR_DATE_EXPLANATION: &str = r#"
