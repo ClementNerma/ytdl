@@ -121,8 +121,9 @@ fn download_inner(
                 .saturating_sub(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
 
             if !remaining_wait.is_zero() {
+                warn!("| Platform is rate limited!");
                 warn!(
-                    "Waiting {} seconds before downloading from the same platform again...",
+                    "| Waiting {} seconds before downloading from the same platform again...",
                     remaining_wait.as_secs()
                 );
 
