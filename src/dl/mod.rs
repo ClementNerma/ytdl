@@ -22,9 +22,10 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::{
+    collections::HashMap,
     env, fs,
     path::Path,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 pub fn download_from_args(
@@ -83,6 +84,8 @@ fn download_inner(
 
     let mut failed = 0;
 
+    let mut last_dl_from_platforms = HashMap::<&str, Instant>::new();
+
     for (i, (url, args, platform)) in videos.iter().enumerate() {
         let in_playlist = if videos.len() > 1 {
             if i > 0 {
@@ -102,6 +105,25 @@ fn download_inner(
             None
         };
 
+        let rate_limited_platform_name = platform
+            .filter(|p| p.platform_config.dl_options.rate_limited == Some(true))
+            .map(|p| p.platform_name);
+
+        if let Some(platform_name) = rate_limited_platform_name {
+            if let Some(last_dl) = last_dl_from_platforms.get(platform_name) {
+                let remaining_wait = last_dl.elapsed().saturating_sub(Duration::from_secs(120));
+
+                if !remaining_wait.is_zero() {
+                    warn!(
+                        "Waiting {} seconds before downloading from the same platform again...",
+                        remaining_wait.as_secs()
+                    );
+
+                    std::thread::sleep(Duration::from_secs(remaining_wait.as_secs()));
+                }
+            }
+        }
+
         let one_try = || {
             download_single_inner(url, *platform, args, config, in_playlist)
                 .inspect_err(|err| error_anyhow!(err))
@@ -117,8 +139,11 @@ fn download_inner(
             if one_try().is_err() {
                 error!("\\!/ Failed twice on this item, skipping it. \\!/\n");
                 failed += 1;
-                continue;
             }
+        }
+
+        if let Some(platform_name) = rate_limited_platform_name {
+            last_dl_from_platforms.insert(platform_name, Instant::now());
         }
     }
 
