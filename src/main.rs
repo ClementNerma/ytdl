@@ -20,7 +20,7 @@ use self::{
     album::download_album,
     cmd::{Action, Cmd},
     config::Config,
-    dl::download,
+    dl::download_from_args,
     sync::sync,
     utils::{platforms::build_platform_matchers, ytdlp::check_version},
 };
@@ -74,7 +74,7 @@ fn inner_main() -> Result<()> {
     let cwd = env::current_dir().context("Failed to get current directory")?;
 
     match args.action {
-        Action::Dl(args) => download(args, &config, &build_platform_matchers(&config)?),
+        Action::Dl(args) => download_from_args(args, &config, &build_platform_matchers(&config)?),
         Action::Sync(args) => sync(args, &config, &cwd),
         Action::Album(args) => download_album(args, &config, &cwd),
         Action::InitConfig => Ok(()),

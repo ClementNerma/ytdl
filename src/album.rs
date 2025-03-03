@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::{
     config::{Config, UseCookiesFrom},
-    dl::{download, parse_cookies_arg, DlArgs},
+    dl::{download, parse_cookies_arg, SingleDlArgs},
     info, success,
     utils::{
         filenames::sanitize_filename,
@@ -78,40 +78,28 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
 
     let counter_len = entries.len().to_string().len();
 
-    for (i, entry) in entries.iter().enumerate() {
-        info!(
-            "| Downloading track {:>width$} / {}: {}...",
-            (i + 1).to_string().bright_yellow(),
-            entries.len().to_string().bright_yellow(),
-            entry.title.bright_magenta(),
-            width = counter_len
-        );
+    let dl_items = entries
+        .iter()
+        .enumerate()
+        .map(|(i, entry)| {
+            (
+                entry.url.clone(),
+                SingleDlArgs {
+                    no_temp_dir: true,
+                    output_dir: Some(tmp_dir.clone()),
+                    format: Some("bestaudio".to_string()),
+                    no_thumbnail: true,
+                    skip_repair_date: true,
+                    cookies: cookies.clone(),
+                    filenaming: Some(format!("{:0counter_len$}. %(title)s.%(ext)s", i + 1)),
+                    forward_ytdlp_args: vec!["--write-info-json".to_string()],
+                    ..Default::default()
+                },
+            )
+        })
+        .collect::<Vec<_>>();
 
-        info!(
-            "| Track from {} at {}",
-            entry.ie_key.bright_cyan(),
-            entry.url.bright_green(),
-        );
-
-        download(
-            DlArgs {
-                urls: vec![entry.url.clone()],
-                no_temp_dir: true,
-                output_dir: Some(tmp_dir.clone()),
-                format: Some("bestaudio".to_string()),
-                forward_ytdlp_args: vec!["--write-info-json".to_string()],
-                no_thumbnail: true,
-                skip_repair_date: true,
-                cookies: cookies.clone(),
-                filenaming: Some(format!("{:0counter_len$}. %(title)s.%(ext)s", i + 1)),
-                ..Default::default()
-            },
-            config,
-            &platform_matchers,
-        )?;
-
-        info!("");
-    }
+    download(&dl_items, config, &platform_matchers)?;
 
     info!("|\n| Part 3/5: Analyzing tracks metadata...\n|\n");
 

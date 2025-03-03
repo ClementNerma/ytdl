@@ -27,46 +27,63 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-pub fn download(
+pub fn download_from_args(
     args: DlArgs,
     config: &Config,
     platform_matchers: &PlatformsMatchers,
 ) -> Result<()> {
-    download_inner(args, config, platform_matchers)
+    let DlArgs { urls, dl_url } = args;
+
+    let items = urls
+        .into_iter()
+        .map(|url| (url, dl_url.clone()))
+        .collect::<Vec<_>>();
+
+    download(&items, config, platform_matchers)
+}
+
+pub fn download(
+    urls: &[(String, SingleDlArgs)],
+    config: &Config,
+    platform_matchers: &PlatformsMatchers,
+) -> Result<()> {
+    download_inner(urls, config, platform_matchers)
 }
 
 fn download_inner(
-    args: DlArgs,
+    urls: &[(String, SingleDlArgs)],
     config: &Config,
     platform_matchers: &PlatformsMatchers,
 ) -> Result<()> {
-    if args.no_platform && !args.skip_repair_date {
-        bail!("Cannot repair date without a platform\n\n{REPAIR_DATE_EXPLANATION}");
+    for (_, args) in urls {
+        if args.no_platform && !args.skip_repair_date {
+            bail!("Cannot repair date without a platform\n\n{REPAIR_DATE_EXPLANATION}");
+        }
     }
 
-    let mut videos = Vec::with_capacity(args.urls.len());
+    let mut videos = Vec::with_capacity(urls.len());
 
-    for url in &args.urls {
+    for (url, args) in urls {
         let platform = try_find_platform(url, config, platform_matchers)?;
 
         if let Some(platform) = &platform {
             if platform.is_playlist {
-                if args.urls.len() > 1 {
+                if urls.len() > 1 {
                     bail!("Cannot mix playlist and non-playlist downloads");
                 }
 
-                return download_playlist_inner(url, &args, config, platform, platform_matchers);
+                return download_playlist_inner(url, args, config, platform, platform_matchers);
             }
         }
 
-        videos.push((url, platform));
+        videos.push((url, args, platform));
     }
 
     let colored_total = videos.len().to_string().bright_yellow();
 
     let mut failed = 0;
 
-    for (i, (url, platform)) in videos.iter().enumerate() {
+    for (i, (url, args, platform)) in videos.iter().enumerate() {
         let in_playlist = if videos.len() > 1 {
             if i > 0 {
                 info!("");
@@ -86,7 +103,7 @@ fn download_inner(
         };
 
         let one_try = || {
-            download_single_inner(url, *platform, &args, config, in_playlist)
+            download_single_inner(url, *platform, args, config, in_playlist)
                 .inspect_err(|err| error_anyhow!(err))
         };
 
@@ -106,7 +123,10 @@ fn download_inner(
     }
 
     if failed > 0 {
-        bail!("Failed with {} errors", failed.to_string().bright_yellow());
+        bail!(
+            "Failed with {} error(s)",
+            failed.to_string().bright_yellow()
+        );
     }
 
     Ok(())
@@ -116,7 +136,7 @@ fn download_inner(
 fn download_single_inner(
     url: &str,
     platform: Option<FoundPlatform>,
-    args: &DlArgs,
+    args: &SingleDlArgs,
     config: &Config,
     in_playlist: Option<PositionInPlaylist>,
 ) -> Result<()> {
@@ -399,7 +419,7 @@ fn download_single_inner(
 
 fn download_playlist_inner(
     playlist_url: &str,
-    args: &DlArgs,
+    args: &SingleDlArgs,
     config: &Config,
     platform: &FoundPlatform,
     platform_matchers: &PlatformsMatchers,
@@ -452,22 +472,20 @@ fn download_playlist_inner(
             continue;
         };
 
-        urls.push(url);
+        urls.push((
+            url,
+            SingleDlArgs {
+                cookies: platform_config
+                    .dl_options
+                    .cookies
+                    .clone()
+                    .or(args.cookies.clone()),
+                ..args.clone()
+            },
+        ));
     }
 
-    download_inner(
-        DlArgs {
-            urls,
-            cookies: platform_config
-                .dl_options
-                .cookies
-                .clone()
-                .or(args.cookies.clone()),
-            ..args.clone()
-        },
-        config,
-        platform_matchers,
-    )
+    download_inner(&urls, config, platform_matchers)
 }
 
 fn inspect_err(err: &str) {

@@ -6,7 +6,7 @@ use inquire::Confirm;
 
 use crate::{
     config::Config,
-    dl::{download, DlArgs},
+    dl::{download, SingleDlArgs},
     info, success,
     sync::{blacklist::BlacklistEntry, builder::get_cache_path},
     utils::platforms::build_platform_matchers,
@@ -138,37 +138,20 @@ fn run(dry_run: bool, config: &Config, sync_dir: &Path) -> Result<()> {
         }
     }
 
-    let counter_len = entries.len().to_string().len();
+    let dl_items = entries
+        .into_iter()
+        .map(|entry| {
+            (
+                entry.url,
+                SingleDlArgs {
+                    output_dir: Some(entry.sync_dir),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect::<Vec<_>>();
 
-    let mut failed = 0;
-
-    for (i, entry) in entries.iter().enumerate() {
-        info!(
-            "| Downloading video {:>width$} / {}: {}...",
-            (i + 1).to_string().bright_yellow(),
-            entries.len().to_string().bright_yellow(),
-            entry.title.bright_magenta(),
-            width = counter_len
-        );
-
-        let result = download(
-            DlArgs {
-                urls: vec![entry.url.clone()],
-                output_dir: Some(entry.sync_dir.clone()),
-                ..Default::default()
-            },
-            config,
-            &platform_matchers,
-        );
-
-        if result.is_err() {
-            failed += 1;
-        }
-    }
-
-    if failed > 1 {
-        bail!("Failed with {failed} errors");
-    }
+    download(&dl_items, config, &platform_matchers)?;
 
     fs::remove_file(&cache_path).context("Failed to remove the cache file")?;
 

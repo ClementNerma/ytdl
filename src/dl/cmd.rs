@@ -9,6 +9,12 @@ pub struct DlArgs {
     #[clap(help = "URL(s) of the video/playlist/channel/... to download")]
     pub urls: Vec<String>,
 
+    #[clap(flatten)]
+    pub dl_url: SingleDlArgs,
+}
+
+#[derive(Args, Clone, Default)]
+pub struct SingleDlArgs {
     #[clap(
         long,
         long_help = "Don't require a registered platform in the config file\nRemoves the ability to download playlists and per-platform configuration"
