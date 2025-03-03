@@ -60,6 +60,9 @@ pub struct DlArgs {
     #[clap(long, help = "Don't download any thumbnail")]
     pub no_thumbnail: bool,
 
+    #[clap(long, help = "Slow down requests for rate-limited platforms")]
+    pub rate_limited: bool,
+
     #[clap(
         short,
         long,

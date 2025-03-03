@@ -135,19 +135,20 @@ fn download_single_inner(
         })
         .transpose()?;
 
-    let dl_options = platform
-        .as_ref()
-        .map(|p| &p.platform_config.dl_options)
-        .unwrap_or(&PlatformDownloadOptions {
-            bandwidth_limit: None,
-            needs_checking: None,
-            rate_limited: None,
-            cookies: None,
-            skip_repair_date: Some(true),
-            output_format: None,
-            download_format: None,
-            no_thumbnail: None,
-        });
+    let dl_options =
+        platform
+            .map(|p| &p.platform_config.dl_options)
+            .unwrap_or(&PlatformDownloadOptions {
+                bandwidth_limit: None,
+                needs_checking: None,
+                rate_limited: None,
+                cookies: None,
+                skip_repair_date: Some(true),
+                output_format: None,
+                download_format: None,
+                no_thumbnail: None,
+                forward_ytdlp_args: None,
+            });
 
     let mut ytdl_args = vec![
         "--format",
@@ -235,6 +236,10 @@ fn download_single_inner(
         append_cookies_args(&mut ytdl_args, cookies)?;
     }
 
+    if dl_options.rate_limited == Some(true) || args.rate_limited {
+        ytdl_args.push("--sleep-requests=3");
+    }
+
     let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);
 
     let dl_dir = match &tmp_dir {
@@ -264,7 +269,6 @@ fn download_single_inner(
     );
 
     ytdl_args.push(url);
-
 
     info!(
         "> Downloading video {}{}",
