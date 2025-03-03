@@ -116,9 +116,8 @@ fn download_inner(
         if let Some(last_dl) =
             rate_limited_platform_name.and_then(|name| last_dl_from_platforms.get(name))
         {
-            let remaining_wait = last_dl
-                .elapsed()
-                .saturating_sub(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
+            let remaining_wait = Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS)
+                .saturating_sub(last_dl.elapsed());
 
             if !remaining_wait.is_zero() {
                 warn!("| Platform is rate limited!");
