@@ -21,7 +21,7 @@ pub struct SingleDlArgs {
     )]
     pub no_platform: bool,
 
-    #[clap(short, long, help = "Custom YT-DLP format")]
+    #[clap(long, help = "Custom YT-DLP format")]
     pub format: Option<String>,
 
     #[clap(
