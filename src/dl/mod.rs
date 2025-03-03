@@ -431,7 +431,7 @@ fn download_single_inner(
         };
 
     info!(
-        "> Moving the download file to output directory: {}...",
+        "> Moving the download file to output directory: {}",
         output_dir.to_string_lossy().bright_magenta()
     );
 
