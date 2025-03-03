@@ -422,9 +422,9 @@ fn download_single_inner(
     let video_upload_date = captured.name("date").unwrap().as_str();
     let video_filename = captured.name("filename").unwrap().as_str();
 
-    let repair_dates =
+    let extracted_date =
         if !args.skip_repair_date && platform_dl_options.skip_repair_date != Some(true) {
-            info!("> Repairing date as requested");
+            info!("| Extracting date from downloaded file");
             parse_date(&video_file, video_upload_date)?
         } else {
             None
@@ -448,7 +448,7 @@ fn download_single_inner(
         video_file.to_string_lossy().bright_magenta()
     ))?;
 
-    if let Some(date) = repair_dates {
+    if let Some(date) = extracted_date {
         info!("> Applying repaired date...");
 
         apply_mtime(&output_file, date).with_context(|| {
