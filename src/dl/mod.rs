@@ -4,10 +4,12 @@ mod repair_date;
 
 pub use cmd::*;
 pub use constants::*;
+use pomsky_macro::pomsky;
+use regex::Regex;
 
 use crate::{
     config::{Config, PlatformDownloadOptions, UseCookiesFrom},
-    dl::repair_date::{apply_mtime, repair_date},
+    dl::repair_date::{apply_mtime, parse_date},
     error, error_anyhow, info, info_inline, success,
     utils::{
         platforms::{
@@ -25,6 +27,7 @@ use std::{
     collections::HashMap,
     env, fs,
     path::Path,
+    sync::LazyLock,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -176,21 +179,6 @@ fn download_single_inner(
     config: &Config,
     in_playlist: Option<PositionInPlaylist>,
 ) -> Result<()> {
-    let video_id = platform
-        .as_ref()
-        .map(|platform| -> Result<String> {
-            Ok(platform
-                .platform_matchers
-                .id_from_video_url
-                .captures(url)
-                .context("Failed to extract video ID from URL using the platform's matcher")?
-                .name(ID_REGEX_MATCHING_GROUP_NAME)
-                .unwrap()
-                .as_str()
-                .to_string())
-        })
-        .transpose()?;
-
     let platform_dl_options =
         platform
             .map(|p| &p.platform_config.dl_options)
@@ -199,7 +187,7 @@ fn download_single_inner(
                 needs_checking: None,
                 rate_limited: None,
                 cookies: None,
-                skip_repair_date: Some(true),
+                skip_repair_date: None,
                 output_format: None,
                 download_format: None,
                 no_thumbnail: None,
@@ -301,30 +289,34 @@ fn download_single_inner(
         ytdl_args.push("--sleep-requests=3");
     }
 
-    let filenaming = args.filenaming.as_deref().unwrap_or(DEFAULT_FILENAMING);
+    let mut filenaming = args
+        .filenaming
+        .as_deref()
+        .unwrap_or(DEFAULT_FILENAMING)
+        .to_owned();
+
+    if args.index_prefix {
+        let in_playlist = in_playlist.context(
+            "Cannot add an index prefix as this video isn't part of a playlist download",
+        )?;
+
+        filenaming = format!(
+            "{:0total_len$}. {filenaming}",
+            in_playlist.index + 1,
+            total_len = in_playlist.total.to_string().len()
+        )
+    };
 
     let dl_dir = match &tmp_dir {
         Some(tmp_dir) => tmp_dir.clone(),
         None => output_dir.clone(),
     };
 
-    let output_with_filenaming = dl_dir.join(if args.index_prefix {
-        let in_playlist = in_playlist.context(
-            "Cannot add an index prefix as this video isn't part of a playlist download",
-        )?;
-
-        format!(
-            "{:0total_len$}. {filenaming}",
-            in_playlist.index + 1,
-            total_len = in_playlist.total.to_string().len()
-        )
-    } else {
-        filenaming.to_owned()
-    });
+    let ytdlp_output = dl_dir.join(format!("%(upload_date)s---{filenaming}"));
 
     ytdl_args.push("-o");
     ytdl_args.push(
-        output_with_filenaming
+        ytdlp_output
             .to_str()
             .context("Output directory contains invalid UTF-8 characters")?,
     );
@@ -405,35 +397,39 @@ fn download_single_inner(
         video_file.display()
     );
 
-    let repair_dates = if !args.skip_repair_date
-        && platform_dl_options.skip_repair_date != Some(true)
-    {
-        info!("> Repairing date as requested");
+    let video_filename = video_file.file_name().unwrap().to_str().with_context(|| {
+        format!(
+            "Downloaded file name contains invalid UTF-8 characters: {}",
+            video_file.display()
+        )
+    })?;
 
-        if platform_dl_options.rate_limited == Some(true) {
-            warn!("| Platform is rate limited!");
-            warn!("| Waiting {RATE_LIMITED_WAIT_DURATION_SECS} seconds before fetching date...");
+    let captured = EXTRACT_UPLOAD_DATE_REGEX
+        .captures(video_filename)
+        .with_context(|| {
+            format!(
+                "Failed to extract upload date from downloaded file name: {}",
+                video_file.display()
+            )
+        })?;
 
-            std::thread::sleep(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
-        }
+    let video_upload_date = captured.name("date").unwrap().as_str();
+    let video_filename = captured.name("filename").unwrap().as_str();
 
-        repair_date(
-            &video_file,
-            &video_id.unwrap(),
-            &config.yt_dlp_bin,
-            platform.unwrap().platform_config,
-            cookies,
-        )?
-    } else {
-        None
-    };
+    let repair_dates =
+        if !args.skip_repair_date && platform_dl_options.skip_repair_date != Some(true) {
+            info!("> Repairing date as requested");
+            parse_date(&video_file, video_upload_date)?
+        } else {
+            None
+        };
 
     info!(
         "> Moving the download file to output directory: {}...",
         output_dir.to_string_lossy().bright_magenta()
     );
 
-    let output_file = output_dir.join(video_file.file_name().unwrap());
+    let output_file = output_dir.join(video_filename);
 
     fs::copy(&video_file, &output_file).with_context(|| {
         format!(
@@ -470,6 +466,13 @@ fn download_single_inner(
 
     Ok(())
 }
+
+static EXTRACT_UPLOAD_DATE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(pomsky!(
+        Start :date([Letter d]+) "---" :filename(.+) End
+    ))
+    .unwrap()
+});
 
 fn download_playlist_inner(
     playlist_url: &str,
