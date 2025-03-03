@@ -1,21 +1,8 @@
-use once_cell::sync::Lazy;
-use terminal_size::{terminal_size, Width};
-
-pub static TERM_WIDTH: Lazy<Option<u16>> =
-    Lazy::new(|| terminal_size().map(|(Width(cols), _)| cols));
-
 #[macro_export]
 macro_rules! _format {
     ($color: ident => $message: tt, $($params: tt)*) => {{
-        use colored::Colorize;
-        let msg = format!($message, $($params)*);
-
-        let msg = match *$crate::utils::logging::TERM_WIDTH {
-            None => msg.as_str(),
-            Some(width) => $crate::utils::ansi_strip::ansi_strip(&msg, width.into())
-        };
-
-        msg.$color()
+        use ::colored::Colorize;
+        format!($message, $($params)*).$color()
     }}
 }
 

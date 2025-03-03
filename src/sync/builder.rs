@@ -1,7 +1,6 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use once_cell::sync::Lazy;
 use pomsky_macro::pomsky;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
@@ -9,7 +8,10 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        LazyLock,
+    },
     time::Duration,
 };
 use walkdir::WalkDir;
@@ -33,7 +35,7 @@ use crate::{
     warn,
 };
 
-pub static VIDEO_ID_REGEX: Lazy<Regex> = Lazy::new(|| {
+pub static VIDEO_ID_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(pomsky!(
         let ext = "mp4"|"mkv"|"webm"|"mov"|"avi"|"mp3"|"ogg"|"flac"|"alac"|"aac"|"3gp"|"wav"|"aiff"|"dsf";
         '-' :id(['a'-'z' 'A'-'Z' '0'-'9' '_' '-']+) '.' ext End

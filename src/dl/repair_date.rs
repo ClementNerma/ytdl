@@ -9,12 +9,11 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use once_cell::sync::Lazy;
 use pomsky_macro::pomsky;
 use regex::Regex;
-use std::{path::Path, process::Command};
+use std::{path::Path, process::Command, sync::LazyLock};
 
-static UPLOAD_DATE_REGEX: Lazy<Regex> = Lazy::new(|| {
+static UPLOAD_DATE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(pomsky!(
         Start :year("20" [digit]{2}) :month([digit]{2}) :day([digit]{2}) End
     ))
@@ -47,11 +46,7 @@ pub fn repair_date(
     info_inline!(
         "| Treating video {} [{}] ",
         video_id.bright_black(),
-        file_name
-            .chars()
-            .take(50)
-            .collect::<String>()
-            .bright_magenta(),
+        file_name.bright_magenta(),
     );
 
     let mut args = ["--get-filename", "-o", "%(upload_date)s"].to_vec();
