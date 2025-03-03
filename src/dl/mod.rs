@@ -412,7 +412,8 @@ fn download_single_inner(
         info!("> Repairing date as requested");
 
         if platform_dl_options.rate_limited == Some(true) {
-            info!("| Waiting {RATE_LIMITED_WAIT_DURATION_SECS} seconds before fetching date...");
+            warn!("| Platform is rate limited!");
+            warn!("| Waiting {RATE_LIMITED_WAIT_DURATION_SECS} seconds before fetching date...");
 
             std::thread::sleep(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
         }
