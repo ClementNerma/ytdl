@@ -111,7 +111,9 @@ fn download_inner(
 
         if let Some(platform_name) = rate_limited_platform_name {
             if let Some(last_dl) = last_dl_from_platforms.get(platform_name) {
-                let remaining_wait = last_dl.elapsed().saturating_sub(Duration::from_secs(120));
+                let remaining_wait = last_dl
+                    .elapsed()
+                    .saturating_sub(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
 
                 if !remaining_wait.is_zero() {
                     warn!(
@@ -180,7 +182,7 @@ fn download_single_inner(
         })
         .transpose()?;
 
-    let dl_options =
+    let platform_dl_options =
         platform
             .map(|p| &p.platform_config.dl_options)
             .unwrap_or(&PlatformDownloadOptions {
@@ -199,7 +201,7 @@ fn download_single_inner(
         "--format",
         args.format
             .as_deref()
-            .or(dl_options.download_format.as_deref())
+            .or(platform_dl_options.download_format.as_deref())
             .unwrap_or(DEFAULT_BEST_VIDEO_FORMAT),
         "--add-metadata",
         "--abort-on-unavailable-fragment",
@@ -210,7 +212,7 @@ fn download_single_inner(
     let bandwidth_limit = args
         .limit_bandwidth
         .as_ref()
-        .or(dl_options.bandwidth_limit.as_ref())
+        .or(platform_dl_options.bandwidth_limit.as_ref())
         .or(config.default_bandwidth_limit.as_ref());
 
     if let Some(bandwidth_limit) = bandwidth_limit {
@@ -261,27 +263,32 @@ fn download_single_inner(
         Some(tmp_dir.join(format!("{}-{}", now.as_secs(), now.subsec_micros())))
     };
 
-    if tmp_dir.is_none() && !dl_options.skip_repair_date.unwrap_or(false) && !args.skip_repair_date
+    if tmp_dir.is_none()
+        && !platform_dl_options.skip_repair_date.unwrap_or(false)
+        && !args.skip_repair_date
     {
         bail!("Cannot repair date in a non-temporary directory.\n\n{REPAIR_DATE_EXPLANATION}");
     }
 
-    if !args.no_thumbnail && dl_options.no_thumbnail != Some(true) {
+    if !args.no_thumbnail && platform_dl_options.no_thumbnail != Some(true) {
         ytdl_args.push("--embed-thumbnail");
 
-        if let Some(format) = &dl_options.output_format {
+        if let Some(format) = &platform_dl_options.output_format {
             ytdl_args.push("--merge-output-format");
             ytdl_args.push(format);
         }
     }
 
-    let cookies = args.cookies.as_ref().or(dl_options.cookies.as_ref());
+    let cookies = args
+        .cookies
+        .as_ref()
+        .or(platform_dl_options.cookies.as_ref());
 
     if let Some(cookies) = cookies {
         append_cookies_args(&mut ytdl_args, cookies)?;
     }
 
-    if dl_options.rate_limited == Some(true) || args.rate_limited {
+    if platform_dl_options.rate_limited == Some(true) || args.rate_limited {
         ytdl_args.push("--sleep-requests=3");
     }
 
@@ -330,7 +337,7 @@ fn download_single_inner(
         }
     );
 
-    if let Some(args) = &dl_options.forward_ytdlp_args {
+    if let Some(args) = &platform_dl_options.forward_ytdlp_args {
         info!(
             "| Forwarding additional YT-DLP arguments from platform configuration: {}",
             args.join(" ").bright_yellow()
@@ -385,8 +392,16 @@ fn download_single_inner(
         video_file.display()
     );
 
-    let repair_dates = if !args.skip_repair_date && dl_options.skip_repair_date != Some(true) {
+    let repair_dates = if !args.skip_repair_date
+        && platform_dl_options.skip_repair_date != Some(true)
+    {
         info!("> Repairing date as requested");
+
+        if platform_dl_options.rate_limited == Some(true) {
+            info!("| Waiting {RATE_LIMITED_WAIT_DURATION_SECS} seconds before fetching date...");
+
+            std::thread::sleep(Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS));
+        }
 
         repair_date(
             &video_file,
@@ -547,6 +562,8 @@ struct PositionInPlaylist {
     index: usize,
     total: usize,
 }
+
+static RATE_LIMITED_WAIT_DURATION_SECS: u64 = 120;
 
 static REPAIR_DATE_EXPLANATION: &str = r#"
 By default, ytdl tries to write the videos' upload date to the downloaded files' metadata.
