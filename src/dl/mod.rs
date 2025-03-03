@@ -125,10 +125,15 @@ fn download_inner(
         } else if let Some(last_dl) =
             rate_limited_platform_name.and_then(|name| last_dl_from_platforms.get(name))
         {
-            let remaining_wait = Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS)
+            let mut remaining_wait = Duration::from_secs(RATE_LIMITED_WAIT_DURATION_SECS)
                 .saturating_sub(last_dl.elapsed());
 
             if !remaining_wait.is_zero() {
+                // Round up
+                if remaining_wait.subsec_millis() > 0 {
+                    remaining_wait += Duration::from_secs(1);
+                }
+
                 warn!("| Platform is rate limited!");
                 warn!(
                     "| Waiting {} seconds before downloading from the same platform again...",
