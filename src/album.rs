@@ -99,7 +99,7 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                 no_temp_dir: true,
                 output_dir: Some(tmp_dir.clone()),
                 format: Some("bestaudio".to_string()),
-                forward: vec!["--write-info-json".to_string()],
+                forward_ytdlp_args: vec!["--write-info-json".to_string()],
                 no_thumbnail: true,
                 skip_repair_date: true,
                 cookies: cookies.clone(),

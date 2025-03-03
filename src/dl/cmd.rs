@@ -61,11 +61,12 @@ pub struct DlArgs {
     pub no_thumbnail: bool,
 
     #[clap(
+        short,
         long,
         help = "Additional arguments to provide to YT-DLP",
         allow_hyphen_values = true
     )]
-    pub forward: Vec<String>,
+    pub forward_ytdlp_args: Vec<String>,
 }
 
 pub fn parse_cookies_arg(arg: &str) -> Result<UseCookiesFrom, String> {

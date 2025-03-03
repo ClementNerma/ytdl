@@ -265,9 +265,6 @@ fn download_single_inner(
 
     ytdl_args.push(url);
 
-    for arg in &args.forward {
-        ytdl_args.push(arg);
-    }
 
     info!(
         "> Downloading video {}{}",
@@ -283,6 +280,14 @@ fn download_single_inner(
             None => String::new(),
         }
     );
+
+    if !args.forward_ytdlp_args.is_empty() {
+        info!(
+            "| Forwarding additional YT-DLP arguments from command line: {}",
+            args.forward_ytdlp_args.join(" ").bright_yellow()
+        );
+        ytdl_args.extend(args.forward_ytdlp_args.iter().map(String::as_str));
+    }
 
     if let Some(tmp_dir) = &tmp_dir {
         info!(
