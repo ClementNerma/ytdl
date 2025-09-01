@@ -11,7 +11,7 @@ use crate::{
 
 pub type PlatformsMatchers<'a> = HashMap<&'a String, PlatformMatchingRegexes>;
 
-pub fn build_platform_matchers(config: &Config) -> Result<PlatformsMatchers> {
+pub fn build_platform_matchers(config: &'_ Config) -> Result<PlatformsMatchers<'_>> {
     config
         .platforms
         .iter()

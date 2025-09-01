@@ -312,13 +312,11 @@ fn download_thumbnail(url: &str, to_dir: &Path) -> Result<(PathBuf, Option<Strin
         .or_else(|| {
             url.path()
                 .split('.')
-                .last()
+                .next_back()
                 .map(str::to_lowercase)
                 .filter(|ext| ext == "png" || ext == "jpg" || ext == "jpeg")
         })
         .map(|ext| format!(".{ext}"));
-
-    println!("{maybe_ext:?}");
 
     let path = to_dir.join(format!(
         "thumbnail{}",
