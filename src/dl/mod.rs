@@ -202,6 +202,7 @@ fn download_single_inner(
                 skip_repair_date: None,
                 output_format: None,
                 download_format: None,
+                album_download_format: None,
                 no_thumbnail: None,
                 forward_ytdlp_args: None,
             });

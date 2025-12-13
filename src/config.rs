@@ -99,6 +99,9 @@ pub struct PlatformDownloadOptions {
     /// Download format (e.g. "bestaudio")
     pub download_format: Option<String>,
 
+    /// Download format for albums (e.g. "bestaudio")
+    pub album_download_format: Option<String>,
+
     /// Disable thumbnail downloading and embedding
     pub no_thumbnail: Option<bool>,
 
