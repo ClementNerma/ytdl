@@ -2,7 +2,6 @@
 #![forbid(unused_must_use)]
 #![warn(unused_crate_dependencies)]
 
-mod album;
 mod cmd;
 mod config;
 mod dl;
@@ -17,10 +16,9 @@ use colored::Colorize;
 use dirs::config_dir;
 
 use self::{
-    album::download_album,
     cmd::{Action, Cmd},
     config::Config,
-    dl::download_from_args,
+    dl::{album::download_album, download_from_args},
     sync::sync,
     utils::{platforms::build_platform_matchers, ytdlp::check_version},
 };

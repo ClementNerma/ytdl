@@ -1,3 +1,4 @@
+pub mod album;
 mod cmd;
 mod constants;
 mod repair_date;

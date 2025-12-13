@@ -1,4 +1,7 @@
-use crate::{album::AlbumArgs, dl::DlArgs, sync::SyncArgs};
+use crate::{
+    dl::{album::AlbumArgs, DlArgs},
+    sync::SyncArgs,
+};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
