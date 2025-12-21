@@ -88,14 +88,15 @@ pub fn download_album(args: AlbumArgs, config: &Config, cwd: &Path) -> Result<()
                     prefetched_title: Some(entry.title.clone()),
                     no_temp_dir: true,
                     output_dir: Some(tmp_dir.clone()),
-                    format: Some(
+                    raw_format: Some(
                         platform_config
                             .dl_options
-                            .album_download_format
+                            .raw_album_format
                             .as_deref()
                             .unwrap_or("bestaudio")
                             .to_string(),
                     ),
+                    quality: None,
                     no_thumbnail: true,
                     skip_repair_date: true,
                     cookies: cookies.clone(),

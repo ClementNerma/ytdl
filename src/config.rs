@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
+use crate::dl::VideoQuality;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -96,11 +98,11 @@ pub struct PlatformDownloadOptions {
     /// Output format (e.g. "mkv")
     pub output_format: Option<String>,
 
-    /// Download format (e.g. "bestaudio")
-    pub download_format: Option<String>,
+    /// Default quality (e.g. "best-1080p")
+    pub default_quality: Option<VideoQuality>,
 
-    /// Download format for albums (e.g. "bestaudio")
-    pub album_download_format: Option<String>,
+    /// Raw YT-DLP download format for albums (e.g. "bestaudio")
+    pub raw_album_format: Option<String>,
 
     /// Disable thumbnail downloading and embedding
     pub no_thumbnail: Option<bool>,

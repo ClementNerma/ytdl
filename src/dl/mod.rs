@@ -1,12 +1,11 @@
 pub mod album;
 mod cmd;
-mod constants;
+mod quality;
 mod repair_date;
 
-pub use cmd::*;
-pub use constants::*;
 use pomsky_macro::pomsky;
 use regex::Regex;
+pub use {cmd::*, quality::*};
 
 use crate::{
     config::{Config, PlatformDownloadOptions, UseCookiesFrom},
@@ -31,6 +30,8 @@ use std::{
     sync::LazyLock,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+use self::quality::DEFAULT_GOOD_VIDEO_QUALITY;
 
 pub fn download_from_args(
     args: DlArgs,
@@ -201,18 +202,20 @@ fn download_single_inner(
                 cookies: None,
                 skip_repair_date: None,
                 output_format: None,
-                download_format: None,
-                album_download_format: None,
+                default_quality: None,
+                raw_album_format: None,
                 no_thumbnail: None,
                 forward_ytdlp_args: None,
             });
 
     let mut ytdl_args = vec![
         "--format",
-        args.format
-            .as_deref()
-            .or(platform_dl_options.download_format.as_deref())
-            .unwrap_or(DEFAULT_BEST_VIDEO_FORMAT),
+        args.raw_format.as_deref().unwrap_or_else(|| {
+            args.quality
+                .or(platform_dl_options.default_quality)
+                .unwrap_or(DEFAULT_GOOD_VIDEO_QUALITY)
+                .to_yt_dlp_format()
+        }),
         "--add-metadata",
         "--abort-on-unavailable-fragment",
         "--compat-options",
@@ -605,3 +608,5 @@ and also to use a temporary directory.
 If you wish to disable this behaviour, use the `--skip-repair-date` option, or configure it
 in your ytdl-config.json file.
 "#;
+
+pub static DEFAULT_FILENAMING: &str = "%(title)s-%(id)s.%(ext)s";
