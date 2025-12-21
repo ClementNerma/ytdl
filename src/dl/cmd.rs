@@ -4,7 +4,9 @@ use clap::Args;
 
 use crate::config::UseCookiesFrom;
 
-#[derive(Args, Clone, Default)]
+use super::quality::VideoQuality;
+
+#[derive(Args, Clone)]
 pub struct DlArgs {
     #[clap(help = "URL(s) of the video/playlist/channel/... to download")]
     pub urls: Vec<String>,
@@ -21,8 +23,11 @@ pub struct SingleDlArgs {
     )]
     pub no_platform: bool,
 
-    #[clap(long, help = "Custom YT-DLP format")]
-    pub format: Option<String>,
+    #[clap(long, help = "Video quality")]
+    pub quality: Option<VideoQuality>,
+
+    #[clap(long, help = "Custom YT-DLP video format", conflicts_with = "quality")]
+    pub raw_format: Option<String>,
 
     #[clap(
         long,
