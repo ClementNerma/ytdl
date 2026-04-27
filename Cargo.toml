@@ -2,6 +2,7 @@
 name = "ytdl"
 version = "0.14.3"
 edition = "2024"
+publish = false
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
