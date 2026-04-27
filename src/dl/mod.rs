@@ -609,4 +609,4 @@ If you wish to disable this behaviour, use the `--skip-repair-date` option, or c
 in your ytdl-config.json file.
 "#;
 
-pub static DEFAULT_FILENAMING: &str = "%(title)s-%(id)s.%(ext)s";
+pub static DEFAULT_FILENAMING: &str = "%(title)s [%(id)s].%(ext)s";
