@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use colored::Colorize;
 use regex::Regex;
 
@@ -104,7 +104,9 @@ pub fn try_find_platform<'a, 'b>(
         }
 
         if platform_matchers.platform_url_matcher.is_match(url) {
-            bail!("Detected URL '{url}' as platform '{name}' but the video and playlist regexes didn't detect it as valid!");
+            bail!(
+                "Detected URL '{url}' as platform '{name}' but the video and playlist regexes didn't detect it as valid!"
+            );
         }
     }
 
@@ -114,34 +116,33 @@ pub fn try_find_platform<'a, 'b>(
 pub fn determine_video_id(
     video: &RawVideoInfos,
     platform_matchers: &PlatformsMatchers,
-) -> Result<String> {
+) -> Option<String> {
     let matcher = platform_matchers
         .get(&video.ie_key)
         .expect("Internal consistency error: failed to get platform matchers for given video");
 
-    let matching = matcher
-        .id_from_video_url
-        .captures(&video.url)
-        .with_context(|| {
-            format!(
-                "Video URL does not match provided pattern for platform {}: {} in {}",
-                video.ie_key.bright_yellow(),
-                matcher.id_from_video_url.to_string().bright_cyan(),
-                video.url.bright_magenta(),
-            )
-        })?;
+    determine_video_id_from_platform(&video.url, matcher)
+}
 
-    let id = matching
-        .name(ID_REGEX_MATCHING_GROUP_NAME)
-        .with_context(|| {
-            format!(
-                "Inconsistency error: missing ID capture group {} in platform regex {}",
-                ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
-                matcher.id_from_video_url.to_string().bright_yellow()
-            )
-        })?;
+pub fn determine_video_id_from_platform(
+    video_url: &str,
+    platform: &PlatformMatchingRegexes,
+) -> Option<String> {
+    let matching = platform.id_from_video_url.captures(video_url)?;
 
-    Ok(id.as_str().to_string())
+    Some(
+        matching
+            .name(ID_REGEX_MATCHING_GROUP_NAME)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Inconsistency error: missing ID capture group {} in platform regex {}",
+                    ID_REGEX_MATCHING_GROUP_NAME.bright_cyan(),
+                    platform.id_from_video_url.to_string().bright_yellow()
+                )
+            })
+            .as_str()
+            .to_string(),
+    )
 }
 
 #[derive(Clone, Copy)]

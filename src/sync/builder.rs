@@ -271,7 +271,12 @@ fn fetch_playlists(playlists: Vec<PlaylistUrl>, config: &Config) -> Result<Vec<P
                 )
             })?;
 
-            let id = determine_video_id(&video, &platform_matchers)?;
+            let id = determine_video_id(&video, &platform_matchers).with_context(|| {
+                format!(
+                    "Failed to determine video ID for video at URL {}",
+                    video.url.bright_magenta()
+                )
+            })?;
 
             entries.push(PlatformVideo {
                 id,
@@ -300,7 +305,7 @@ fn build_approximate_indexes(
     Ok(dirs_ids)
 }
 
-fn build_approximate_index(dir: &Path) -> Result<HashSet<String>> {
+pub fn build_approximate_index(dir: &Path) -> Result<HashSet<String>> {
     let mut ids = HashSet::new();
 
     for item in WalkDir::new(dir) {

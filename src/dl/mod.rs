@@ -11,10 +11,11 @@ use crate::{
     config::{Config, PlatformDownloadOptions, UseCookiesFrom},
     dl::repair_date::{apply_mtime, parse_date},
     error, error_anyhow, info, info_inline, success,
+    sync::build_approximate_index,
     utils::{
         platforms::{
-            FoundPlatform, ID_REGEX_MATCHING_GROUP_NAME, PlatformsMatchers, find_platform,
-            try_find_platform,
+            FoundPlatform, ID_REGEX_MATCHING_GROUP_NAME, PlatformsMatchers,
+            determine_video_id_from_platform, find_platform, try_find_platform,
         },
         shell::run_cmd_bi_outs,
         ytdlp::{append_cookies_args, fetch_playlist},
@@ -91,6 +92,8 @@ fn download_inner(
 
     let mut last_dl_from_platforms = HashMap::<&str, Instant>::new();
 
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
+
     for (i, (url, args, platform)) in videos.iter().enumerate() {
         let in_playlist = if videos.len() > 1 {
             if i > 0 {
@@ -113,6 +116,24 @@ fn download_inner(
         } else {
             None
         };
+
+        let output_dir = args.output_dir.as_deref().unwrap_or(current_dir.as_path());
+        let index = build_approximate_index(output_dir)?;
+
+        if let Some(platform) = platform {
+            if let Some(video_id) =
+                determine_video_id_from_platform(url, platform.platform_matchers)
+            {
+                if index.contains(&video_id) {
+                    warn!("> Video seems to be already downloaded, skipping it.");
+                    continue;
+                }
+            } else {
+                warn!(
+                    "Failed to determine video ID from URL using platform's matchers, can't check if video is already downloaded."
+                );
+            }
+        }
 
         let rate_limited_platform_name = platform
             .filter(|p| p.platform_config.dl_options.rate_limited == Some(true))

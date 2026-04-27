@@ -5,5 +5,4 @@ mod cache;
 mod cmd;
 mod display;
 
-pub use actions::sync;
-pub use cmd::SyncArgs;
+pub use self::{actions::sync, builder::build_approximate_index, cmd::SyncArgs};
