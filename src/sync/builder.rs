@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use pomsky_macro::pomsky;
@@ -9,15 +9,15 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicUsize, Ordering},
         LazyLock,
+        atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
 };
 use walkdir::WalkDir;
 
 use super::{
-    blacklist::{blacklist_video, load_optional_blacklists, Blacklist},
+    blacklist::{Blacklist, blacklist_video, load_optional_blacklists},
     cache::{Cache, CacheEntry, PlatformVideo},
 };
 
@@ -27,8 +27,8 @@ use crate::{
     sync::blacklist::BlacklistEntry,
     utils::{
         platforms::{
-            build_platform_matchers, determine_video_id, find_platform, FoundPlatform,
-            ID_REGEX_MATCHING_GROUP_NAME,
+            FoundPlatform, ID_REGEX_MATCHING_GROUP_NAME, build_platform_matchers,
+            determine_video_id, find_platform,
         },
         ytdlp::{check_availability, fetch_playlist},
     },
@@ -145,31 +145,30 @@ fn find_playlists(sync_dir: &Path, config: &Config) -> Result<Vec<PlaylistUrl>> 
     for item in WalkDir::new(&sync_dir) {
         let item = item.context("Failed to read directory entry while scanning playlists")?;
 
-        if let Some(name) = item.file_name().to_str() {
-            if name == config.url_filename {
-                let url = fs::read_to_string(item.path()).with_context(|| {
-                    format!(
-                        "Failed to read playlist file at path {}",
-                        item.path().to_string_lossy().bright_magenta()
-                    )
-                })?;
+        if let Some(name) = item.file_name().to_str()
+            && name == config.url_filename
+        {
+            let url = fs::read_to_string(item.path()).with_context(|| {
+                format!(
+                    "Failed to read playlist file at path {}",
+                    item.path().to_string_lossy().bright_magenta()
+                )
+            })?;
 
-                let path = fs::canonicalize(item.path().parent().unwrap_or_else(|| Path::new("")))
-                    .context("Failed to canonicalize synchronization directory")?;
+            let path = fs::canonicalize(item.path().parent().unwrap_or_else(|| Path::new("")))
+                .context("Failed to canonicalize synchronization directory")?;
 
-                let relative_path = if path == sync_dir {
-                    Path::new(".")
-                } else {
-                    path.strip_prefix(&sync_dir).context(
-                        "Failed to determine video's sync. dir relatively to root sync. dir",
-                    )?
-                };
+            let relative_path = if path == sync_dir {
+                Path::new(".")
+            } else {
+                path.strip_prefix(&sync_dir)
+                    .context("Failed to determine video's sync. dir relatively to root sync. dir")?
+            };
 
-                playlists.push(PlaylistUrl {
-                    sync_dir: relative_path.to_path_buf(),
-                    url: url.trim().to_string(),
-                });
-            }
+            playlists.push(PlaylistUrl {
+                sync_dir: relative_path.to_path_buf(),
+                url: url.trim().to_string(),
+            });
         }
     }
 

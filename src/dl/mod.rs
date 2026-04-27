@@ -13,15 +13,15 @@ use crate::{
     error, error_anyhow, info, info_inline, success,
     utils::{
         platforms::{
-            find_platform, try_find_platform, FoundPlatform, PlatformsMatchers,
-            ID_REGEX_MATCHING_GROUP_NAME,
+            FoundPlatform, ID_REGEX_MATCHING_GROUP_NAME, PlatformsMatchers, find_platform,
+            try_find_platform,
         },
         shell::run_cmd_bi_outs,
         ytdlp::{append_cookies_args, fetch_playlist},
     },
     warn,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use colored::Colorize;
 use std::{
     collections::HashMap,
@@ -72,14 +72,14 @@ fn download_inner(
     for (url, args) in urls {
         let platform = try_find_platform(url, config, platform_matchers)?;
 
-        if let Some(platform) = &platform {
-            if platform.is_playlist {
-                if urls.len() > 1 {
-                    bail!("Cannot mix playlist and non-playlist downloads");
-                }
-
-                return download_playlist_inner(url, args, config, platform, platform_matchers);
+        if let Some(platform) = &platform
+            && platform.is_playlist
+        {
+            if urls.len() > 1 {
+                bail!("Cannot mix playlist and non-playlist downloads");
             }
+
+            return download_playlist_inner(url, args, config, platform, platform_matchers);
         }
 
         videos.push((url, args, platform));
@@ -541,7 +541,10 @@ fn download_playlist_inner(
 
             format!("{}{}", platform_config.videos_url_prefix, video_id)
         } else {
-            warn!("Skipping video {} as it belongs to another platform. Use --redirect-playlist-videos to download anyway.", video.url.bright_magenta());
+            warn!(
+                "Skipping video {} as it belongs to another platform. Use --redirect-playlist-videos to download anyway.",
+                video.url.bright_magenta()
+            );
             continue;
         };
 
