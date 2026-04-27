@@ -37,8 +37,8 @@ use crate::{
 
 pub static VIDEO_ID_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(pomsky!(
-        let ext = "mp4"|"mkv"|"webm"|"mov"|"avi"|"mp3"|"ogg"|"flac"|"alac"|"aac"|"3gp"|"wav"|"aiff"|"dsf";
-        '-' :id(['a'-'z' 'A'-'Z' '0'-'9' '_' '-']+) '.' ext End
+        let ext = "mp4"|  "mkv"|  "webm"|  "mov"|  "avi"|  "mp3"|  "ogg"|  "flac"|  "alac"|  "aac"|  "3gp"|  "wav"|  "aiff"|  "dsf";
+        " [" :id(['a'-'z' 'A'-'Z' '0'-'9' '_' '-']+) "]." ext End
     )).unwrap()
 });
 
