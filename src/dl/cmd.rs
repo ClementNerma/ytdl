@@ -23,8 +23,11 @@ pub struct SingleDlArgs {
     )]
     pub no_platform: bool,
 
-    #[clap(long, help = "Video quality")]
+    #[clap(long, help = "Video quality", conflicts_with_all = &["custom_quality", "raw_format"])]
     pub quality: Option<VideoQuality>,
+
+    #[clap(long, help = "Custom video quality", conflicts_with = "quality")]
+    pub custom_quality: Option<String>,
 
     #[clap(long, help = "Custom YT-DLP video format", conflicts_with = "quality")]
     pub raw_format: Option<String>,
